@@ -1,0 +1,18 @@
+{
+  "name": "fr_report_summary_mismatch",
+  "language": "French",
+  "pages": [
+    {
+      "page_number": 2,
+      "text": "Sommaire: 52 % utilisent la radio chaque jour.",
+      "expected_issues": [
+        "Summary value should match body slides"
+      ]
+    },
+    {
+      "page_number": 10,
+      "text": "Utilisation quotidienne de la radio: 47 %.",
+      "expected_issues": []
+    }
+  ]
+}

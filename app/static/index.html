@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clairebot - Report Review</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 24px;
+            max-width: 1100px;
+            width: 100%;
+        }
+        .panel {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 32px;
+        }
+        .container {
+            width: 100%;
+            position: relative;
+        }
+        .instructions-btn {
+            position: absolute;
+            top: -8px;
+            left: 0;
+            width: auto;
+            padding: 8px 12px;
+            font-size: 13px;
+            border-radius: 8px;
+            background: #111827;
+            box-shadow: none;
+        }
+        h1 {
+            color: #1f2937;
+            margin-top: 28px;
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 32px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 24px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        input[type="file"] {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        input[type="file"]:hover {
+            border-color: #667eea;
+            background: #f9fafb;
+        }
+        .toggle-group {
+            display: flex;
+            gap: 8px;
+        }
+        .toggle-input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-label {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            user-select: none;
+        }
+        .toggle-input:checked + .toggle-label {
+            border-color: #667eea;
+            background: #eef2ff;
+            color: #3730a3;
+            font-weight: 600;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        .checkbox-label {
+            font-weight: normal;
+            cursor: pointer;
+            user-select: none;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+        }
+        .result.success {
+            background: #d1fae5;
+            border: 2px solid #10b981;
+            color: #065f46;
+        }
+        .result.error {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            color: #991b1b;
+        }
+        .result-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .result-detail {
+            font-size: 14px;
+            margin: 4px 0;
+        }
+        .result-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+        }
+        .download-btn {
+            width: auto;
+            padding: 8px 12px;
+            font-size: 13px;
+            background: #111827;
+            box-shadow: none;
+            display: none;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 16px;
+        }
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #benchmarkGroup {
+            display: none;
+        }
+        .status-panel {
+            color: #111827;
+        }
+        .status-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .status-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 520px;
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+        .status-item {
+            font-size: 14px;
+            padding: 6px 0;
+            border-bottom: 1px dashed #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 16px;
+        }
+        .status-time {
+            font-size: 12px;
+            color: #6b7280;
+            white-space: nowrap;
+        }
+        .status-text {
+            color: #111827;
+            flex: 1;
+        }
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .modal-content {
+            background: white;
+            width: min(840px, 100%);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .modal-title {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .close-btn {
+            width: auto;
+            padding: 6px 10px;
+            background: #e5e7eb;
+            color: #111827;
+            box-shadow: none;
+        }
+        .instructions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .instructions-column label {
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        .instructions-textarea {
+            width: 100%;
+            min-height: 320px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 13px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            resize: vertical;
+        }
+        .modal-actions {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .secondary-btn {
+            width: auto;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            box-shadow: none;
+        }
+        @media (max-width: 900px) {
+            .instructions-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="panel container">
+            <button class="instructions-btn" id="instructionsBtn" type="button">See & Edit Instructions</button>
+            <h1>Clairebot</h1>
+            <p class="subtitle">MTM/OTM Report Review Agent</p>
+
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label for="reportFile">Report File (PDF, PPTX, DOCX)</label>
+                    <input type="file" id="reportFile" accept=".pdf,.pptx,.docx,.doc" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Report Language</label>
+                    <div class="toggle-group">
+                        <input class="toggle-input" type="radio" id="langFrench" name="language" value="French" required>
+                        <label class="toggle-label" for="langFrench">French</label>
+                        <input class="toggle-input" type="radio" id="langEnglish" name="language" value="English" required>
+                        <label class="toggle-label" for="langEnglish">English</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="comparisonMode">
+                        <label for="comparisonMode" class="checkbox-label">Compare against benchmark report</label>
+                    </div>
+                </div>
+
+                <div class="form-group" id="benchmarkGroup">
+                    <label for="benchmarkFile">Benchmark File (optional)</label>
+                    <input type="file" id="benchmarkFile" accept=".pdf,.pptx,.docx,.doc">
+                </div>
+
+                <button type="submit" id="submitBtn">Upload & Review</button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 12px; color: #6b7280;">Processing...</p>
+            </div>
+
+            <div class="result" id="result">
+                <div class="result-title" id="resultTitle"></div>
+                <div class="result-detail" id="resultMessage"></div>
+                <div class="result-detail" id="resultJobId"></div>
+                <div class="result-detail" id="resultSheet"></div>
+                <div class="result-actions">
+                    <button type="button" class="download-btn" id="downloadCsvBtn">Download findings CSV</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel status-panel">
+            <div class="status-title">Backend Activity</div>
+            <ul class="status-list" id="statusList"></ul>
+        </div>
+    </div>
+
+    <div class="modal" id="instructionsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Review Instructions</div>
+                <button class="close-btn" id="closeInstructionsBtn" type="button">Close</button>
+            </div>
+            <div class="instructions-grid">
+                <div class="instructions-column">
+                    <label for="englishInstructionsTextarea">English Instructions</label>
+                    <textarea class="instructions-textarea" id="englishInstructionsTextarea" placeholder="Loading English instructions..."></textarea>
+                </div>
+                <div class="instructions-column">
+                    <label for="frenchInstructionsTextarea">French Instructions</label>
+                    <textarea class="instructions-textarea" id="frenchInstructionsTextarea" placeholder="Loading French instructions..."></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="secondary-btn" id="reloadInstructionsBtn" type="button">Reload</button>
+                <button id="saveInstructionsBtn" type="button">Save Instructions</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const comparisonCheckbox = document.getElementById('comparisonMode');
+        const benchmarkGroup = document.getElementById('benchmarkGroup');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusList = document.getElementById('statusList');
+        const instructionsBtn = document.getElementById('instructionsBtn');
+        const instructionsModal = document.getElementById('instructionsModal');
+        const closeInstructionsBtn = document.getElementById('closeInstructionsBtn');
+        const saveInstructionsBtn = document.getElementById('saveInstructionsBtn');
+        const reloadInstructionsBtn = document.getElementById('reloadInstructionsBtn');
+        const englishInstructionsTextarea = document.getElementById('englishInstructionsTextarea');
+        const frenchInstructionsTextarea = document.getElementById('frenchInstructionsTextarea');
+        const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+        let latestFindings = [];
+
+        comparisonCheckbox.addEventListener('change', (e) => {
+            benchmarkGroup.style.display = e.target.checked ? 'block' : 'none';
+        });
+
+        instructionsBtn.addEventListener('click', async () => {
+            instructionsModal.style.display = 'flex';
+            await loadInstructions();
+        });
+
+        closeInstructionsBtn.addEventListener('click', () => {
+            instructionsModal.style.display = 'none';
+        });
+
+        reloadInstructionsBtn.addEventListener('click', async () => {
+            await loadInstructions();
+            addStatus('Instructions reloaded.');
+        });
+
+        saveInstructionsBtn.addEventListener('click', async () => {
+            await saveInstructions();
+        });
+
+        downloadCsvBtn.addEventListener('click', () => {
+            downloadFindingsCsv();
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const reportFile = document.getElementById('reportFile').files[0];
+            const language = document.querySelector('input[name="language"]:checked')?.value;
+            const comparisonMode = comparisonCheckbox.checked;
+            const benchmarkFile = document.getElementById('benchmarkFile').files[0];
+
+            if (!reportFile) {
+                showResult('error', 'Error', 'Please select a report file');
+                return;
+            }
+
+            if (!language) {
+                showResult('error', 'Error', 'Please select a language');
+                return;
+            }
+
+            if (comparisonMode && !benchmarkFile) {
+                showResult('error', 'Error', 'Please select a benchmark file for comparison');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', reportFile);
+            formData.append('report_language', language);
+            formData.append('comparison_mode', comparisonMode);
+            if (benchmarkFile) {
+                formData.append('benchmark_file', benchmarkFile);
+            }
+
+            submitBtn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            addStatus('Upload started. Saving file...');
+
+            try {
+                const response = await fetch('/review', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    addStatus('Parsing document (PDF parser)...');
+                    if (comparisonMode) {
+                        addStatus('Parsing benchmark document...');
+                    }
+                    addStatus('Running LLM review...');
+                    addStatus('Generating response...');
+                    addStatus(`Job ID: ${data.job_id}`);
+                    if (data.llm_status === 'failed') {
+                        addStatus(`Review failed: ${data.llm_error || 'Unknown LLM error'}`);
+                    } else if (Array.isArray(data.findings) && data.findings.length > 0) {
+                        addStatus(`Review completed with ${data.findings.length} finding(s).`);
+                    } else {
+                        addStatus('Review completed: no issues detected.');
+                    }
+                    if (data.sheets_status === 'success' && data.sheets_url) {
+                        addStatus('Findings written to Google Sheets.');
+                    } else if (data.sheets_status === 'failed') {
+                        addStatus(`Google Sheets write failed: ${data.sheets_error || 'Unknown error'}`);
+                    } else {
+                        addStatus('Google Sheets write skipped.');
+                    }
+                    showResult(
+                        'success',
+                        'Upload Successful',
+                        data.message,
+                        `${data.findings_count !== null ? `Findings: ${data.findings_count}` : ''}`,
+                        data.sheets_url || ''
+                    );
+                    latestFindings = Array.isArray(data.findings) ? data.findings : [];
+                    downloadCsvBtn.style.display = 'inline-block';
+                    form.reset();
+                    benchmarkGroup.style.display = 'none';
+                } else {
+                    addStatus('Upload failed: server returned an error.');
+                    showResult('error', 'Upload Failed', data.detail || 'Unknown error');
+                    latestFindings = [];
+                    downloadCsvBtn.style.display = 'none';
+                }
+            } catch (error) {
+                addStatus('Upload failed: could not reach server.');
+                showResult('error', 'Connection Error', 'Failed to connect to server');
+                latestFindings = [];
+                downloadCsvBtn.style.display = 'none';
+            } finally {
+                submitBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+
+        function addStatus(message) {
+            const item = document.createElement('li');
+            item.className = 'status-item';
+
+            const text = document.createElement('div');
+            text.className = 'status-text';
+            text.textContent = message;
+
+            const time = document.createElement('div');
+            time.className = 'status-time';
+            time.textContent = new Date().toLocaleTimeString();
+
+            item.appendChild(text);
+            item.appendChild(time);
+            statusList.appendChild(item);
+        }
+
+        function showResult(type, title, message, jobId = '', sheetsUrl = '') {
+            result.className = `result ${type}`;
+            result.style.display = 'block';
+            document.getElementById('resultTitle').textContent = title;
+            document.getElementById('resultMessage').textContent = message;
+            document.getElementById('resultJobId').textContent = jobId;
+            const sheetNode = document.getElementById('resultSheet');
+            if (sheetsUrl) {
+                sheetNode.innerHTML = `Google Sheets: <a href="${sheetsUrl}" target="_blank" rel="noopener noreferrer">Open output</a>`;
+            } else {
+                sheetNode.textContent = '';
+            }
+        }
+
+        async function loadInstructions() {
+            englishInstructionsTextarea.value = 'Loading...';
+            frenchInstructionsTextarea.value = 'Loading...';
+            try {
+                const response = await fetch('/instructions');
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to load instructions');
+                }
+                englishInstructionsTextarea.value = data.english_instructions || '';
+                frenchInstructionsTextarea.value = data.french_instructions || '';
+            } catch (error) {
+                englishInstructionsTextarea.value = '';
+                frenchInstructionsTextarea.value = '';
+                addStatus('Failed to load instructions.');
+            }
+        }
+
+        async function saveInstructions() {
+            const english_instructions = englishInstructionsTextarea.value || '';
+            const french_instructions = frenchInstructionsTextarea.value || '';
+            try {
+                const response = await fetch('/instructions', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ english_instructions, french_instructions })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to save instructions');
+                }
+                englishInstructionsTextarea.value = data.english_instructions || '';
+                frenchInstructionsTextarea.value = data.french_instructions || '';
+                addStatus('Instructions saved successfully.');
+                instructionsModal.style.display = 'none';
+            } catch (error) {
+                addStatus('Failed to save instructions.');
+            }
+        }
+
+        function downloadFindingsCsv() {
+            const headers = [
+                'Page Number',
+                'Language of the report',
+                'Issue Detected',
+                'Proposed Change'
+            ];
+
+            const rows = [headers];
+            if (!Array.isArray(latestFindings) || latestFindings.length === 0) {
+                rows.push(['-', '-', 'No issues detected', 'No change required']);
+            } else {
+                latestFindings.forEach((f) => {
+                    rows.push([
+                        String(f.page_number ?? '-'),
+                        String(f.language ?? '-'),
+                        String(f.issue_detected ?? ''),
+                        String(f.proposed_change ?? ''),
+                    ]);
+                });
+            }
+
+            const csv = rows
+                .map((row) => row.map(escapeCsvValue).join(','))
+                .join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `clairebot_findings_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            addStatus('Findings downloaded as CSV.');
+        }
+
+        function escapeCsvValue(value) {
+            const v = String(value ?? '');
+            if (v.includes('"') || v.includes(',') || v.includes('\n')) {
+                return '"' + v.replace(/"/g, '""') + '"';
+            }
+            return v;
+        }
+    </script>
+</body>
+</html>

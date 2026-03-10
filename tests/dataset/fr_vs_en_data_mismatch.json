@@ -1,0 +1,13 @@
+{
+  "name": "fr_vs_en_data_mismatch",
+  "language": "French",
+  "pages": [
+    {
+      "page_number": 5,
+      "text": "Écoute quotidienne des balados: 27 %",
+      "expected_issues": [
+        "Data mismatch vs English benchmark page 5 (31%)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "fr_report_methodology_mismatch",
+  "language": "French",
+  "pages": [
+    {
+      "page_number": 1,
+      "text": "Marché francophone - Rapport OTM",
+      "expected_issues": []
+    },
+    {
+      "page_number": 8,
+      "text": "Les résultats présentés ici sont basés sur le sondage réalisé auprès de répondants canadiens.",
+      "expected_issues": [
+        "Methodology target sample should be 'répondants francophones'"
+      ]
+    }
+  ]
+}

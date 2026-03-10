@@ -1,0 +1,23 @@
+{
+  "name": "fr_report_language_issues",
+  "language": "French",
+  "pages": [
+    {
+      "page_number": 1,
+      "text": "Profil des members Canadiens. Données 18-34. television usage est élevé.",
+      "expected_issues": [
+        "English word 'members' in French report",
+        "Use 'Canadiens' not 'Canadians/Canadiens inconsistency'",
+        "Age labels should include 'ans'",
+        "Use accented 'télévision'"
+      ]
+    },
+    {
+      "page_number": 2,
+      "text": "* Résultats principaux sans note de bas de page explicative.",
+      "expected_issues": [
+        "Footnote marker present without matching footnote text"
+      ]
+    }
+  ]
+}

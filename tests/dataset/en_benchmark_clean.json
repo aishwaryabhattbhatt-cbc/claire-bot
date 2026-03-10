@@ -1,0 +1,16 @@
+{
+  "name": "en_benchmark_clean",
+  "language": "English",
+  "pages": [
+    {
+      "page_number": 1,
+      "text": "MTM Audience Report - Anglophone Market",
+      "expected_issues": []
+    },
+    {
+      "page_number": 5,
+      "text": "Daily podcast listening: 31%",
+      "expected_issues": []
+    }
+  ]
+}

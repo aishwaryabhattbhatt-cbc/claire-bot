@@ -6,7 +6,9 @@ from app.models import ParsedDocument
 
 
 def run_deterministic_checks(
-    report: ParsedDocument, benchmark: Optional[ParsedDocument] = None
+    report: ParsedDocument,
+    benchmark: Optional[ParsedDocument] = None,
+    glossary_rules: Optional[List[Dict[str, str]]] = None,
 ) -> List[Dict[str, Any]]:
     findings: List[Dict[str, Any]] = []
 
@@ -20,6 +22,9 @@ def run_deterministic_checks(
 
     if benchmark is not None:
         findings.extend(_check_benchmark_alignment(report, benchmark))
+
+    if glossary_rules:
+        findings.extend(_check_reference_glossary(report, glossary_rules))
 
     return findings
 
@@ -231,6 +236,54 @@ def _check_spelling(report: ParsedDocument) -> List[Dict[str, Any]]:
                 )
                 flagged += 1
             if flagged >= 3:
+                break
+
+    return findings
+
+
+def _check_reference_glossary(
+    report: ParsedDocument, glossary_rules: List[Dict[str, str]]
+) -> List[Dict[str, Any]]:
+    """Apply deterministic source->target terminology checks from reference glossary files."""
+    findings: List[Dict[str, Any]] = []
+    lang = report.metadata.language
+    report_lang = (lang or "").strip().lower()
+
+    for page in report.pages:
+        text = page.text or ""
+        if not text.strip():
+            continue
+
+        page_hits = 0
+        for rule in glossary_rules:
+            source = (rule.get("source") or "").strip()
+            target = (rule.get("target") or "").strip()
+            rule_lang = (rule.get("language") or "Any").strip().lower()
+            origin = (rule.get("origin") or "reference glossary").strip()
+
+            if not source or not target:
+                continue
+
+            if rule_lang == "french" and report_lang != "french":
+                continue
+            if rule_lang == "english" and report_lang != "english":
+                continue
+
+            source_pattern = re.compile(rf"\b{re.escape(source)}\b", flags=re.IGNORECASE)
+            target_pattern = re.compile(rf"\b{re.escape(target)}\b", flags=re.IGNORECASE)
+
+            if source_pattern.search(text) and not target_pattern.search(text):
+                findings.append(
+                    _issue(
+                        page.page_number,
+                        lang,
+                        f"Reference terminology mismatch: found '{source}' without preferred term '{target}' ({origin}).",
+                        f"Replace '{source}' with preferred terminology '{target}'.",
+                    )
+                )
+                page_hits += 1
+
+            if page_hits >= 8:
                 break
 
     return findings

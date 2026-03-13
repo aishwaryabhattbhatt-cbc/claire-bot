@@ -1,0 +1,41 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: clairebot
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "2"
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containerConcurrency: 4
+      timeoutSeconds: 300
+      containers:
+        - image: gcr.io/dig-cd-rmi-report-qa/clairebot:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          env:
+            - name: APP_ENV
+              value: "production"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: LLM_PROVIDER
+              value: "gemini"
+            - name: GEMINI_MODEL
+              value: "gemini-2.5-flash"
+            - name: ENABLE_SHEETS_WRITER
+              value: "false"
+            - name: UPLOAD_DIR
+              value: "/tmp/uploads"
+            - name: PROCESSED_DIR
+              value: "/tmp/processed"
+            # Secrets injected at deploy time via --set-secrets flag
+            # GOOGLE_API_KEY from Secret Manager

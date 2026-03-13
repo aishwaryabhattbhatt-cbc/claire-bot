@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clairebot - Report Review</title>
+    <title>ClaireBot - Report Review</title>
     <style>
         * {
             margin: 0;
@@ -12,44 +12,86 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #ffffff;
             min-height: 100vh;
+            padding: 0;
+            color: #0f172a;
+        }
+        .app-shell {
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            gap: 0;
+            max-width: none;
+            margin: 0;
+            min-height: 100vh;
+        }
+        .topbar {
+            height: 56px;
+            border: none;
+            border-radius: 0;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+            display: flex;
             align-items: center;
-            padding: 20px;
+            justify-content: space-between;
+            padding: 0 16px;
+            position: relative;
+            z-index: 10;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            color: #111827;
+        }
+        .brand-badge {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            background: #111827;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .topbar-nav {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            color: #6b7280;
+            font-size: 13px;
+        }
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 540px;
+            gap: 0;
+            min-height: calc(100vh - 56px);
+            padding-top: 8px;
         }
         .layout {
-            display: grid;
-            grid-template-columns: 1.2fr 1fr;
-            gap: 24px;
-            max-width: 1100px;
+            max-width: none;
             width: 100%;
+            margin: 0;
+            position: relative;
+            z-index: 0;
         }
         .panel {
             background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
             padding: 32px;
         }
         .container {
             width: 100%;
             position: relative;
         }
-        .instructions-btn {
-            position: absolute;
-            top: -8px;
-            left: 0;
-            width: auto;
-            padding: 8px 12px;
-            font-size: 13px;
-            border-radius: 8px;
-            background: #111827;
-            box-shadow: none;
-        }
         h1 {
             color: #1f2937;
-            margin-top: 28px;
+            margin-top: 0;
             margin-bottom: 8px;
             font-size: 28px;
         }
@@ -72,15 +114,16 @@
             display: block;
             width: 100%;
             padding: 12px;
-            border: 2px dashed #d1d5db;
+            border: 2px dotted #cbd5e1;
             border-radius: 8px;
             font-size: 14px;
             cursor: pointer;
             transition: all 0.3s;
+            background: #ffffff;
         }
         input[type="file"]:hover {
-            border-color: #667eea;
-            background: #f9fafb;
+            border-color: #94a3b8;
+            background: #ffffff;
         }
         .toggle-group {
             display: flex;
@@ -95,19 +138,21 @@
         .toggle-label {
             flex: 1;
             padding: 12px;
-            border: 2px solid #e5e7eb;
+            border: none;
             border-radius: 8px;
             font-size: 14px;
-            background: white;
+            background: #f3f4f6;
             cursor: pointer;
             text-align: center;
             transition: all 0.3s;
             user-select: none;
         }
+        .toggle-label:hover {
+            background: #e5e7eb;
+        }
         .toggle-input:checked + .toggle-label {
-            border-color: #667eea;
-            background: #eef2ff;
-            color: #3730a3;
+            background: #e5e7eb;
+            color: #111827;
             font-weight: 600;
         }
         .checkbox-group {
@@ -128,7 +173,7 @@
         button {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #111827;
             color: white;
             border: none;
             border-radius: 8px;
@@ -139,7 +184,7 @@
         }
         button:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 8px 20px rgba(17, 24, 39, 0.25);
         }
         button:disabled {
             opacity: 0.6;
@@ -190,7 +235,7 @@
         }
         .spinner {
             border: 3px solid #f3f4f6;
-            border-top: 3px solid #667eea;
+            border-top: 3px solid #111827;
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -204,9 +249,6 @@
         #benchmarkGroup {
             display: none;
         }
-        .status-panel {
-            color: #111827;
-        }
         .status-title {
             font-size: 18px;
             font-weight: 700;
@@ -217,7 +259,7 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            max-height: 520px;
+            max-height: calc(100vh - 170px);
             overflow-y: auto;
             padding-right: 6px;
         }
@@ -239,42 +281,100 @@
             color: #111827;
             flex: 1;
         }
-        @media (max-width: 900px) {
-            .layout {
-                grid-template-columns: 1fr;
-            }
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(17, 24, 39, 0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
+        .drawer {
+            background: #ffffff;
+            border-left: 1px solid #d1d5db;
             padding: 16px;
+            height: calc(100vh - 56px);
+            position: sticky;
+            top: 56px;
+            width: 100%;
+            overflow: auto;
+            border-radius: 0;
+            z-index: 2;
         }
-        .modal-content {
-            background: white;
-            width: min(840px, 100%);
-            border-radius: 12px;
-            padding: 16px;
-        }
-        .modal-header {
+        .drawer-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 8px;
         }
-        .modal-title {
+        .drawer-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .drawer-nav .sidebar-btn {
+            flex: 1;
+            justify-content: center;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            background: #f3f4f6;
+        }
+        .drawer-nav .sidebar-btn:hover:not(:disabled) {
+            background: #e5e7eb;
+        }
+        .drawer-nav .sidebar-btn.active {
+            background: #e5e7eb;
+            color: #111827;
+            font-weight: 600;
+        }
+        .drawer-title {
             font-size: 16px;
             font-weight: 700;
+        }
+        .drawer-section {
+            display: none;
+        }
+        .drawer-section.active {
+            display: block;
+        }
+        .sidebar-btn {
+            width: auto;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            background: #f3f4f6;
+            color: #374151;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 0 10px;
+            box-shadow: none;
+        }
+        .sidebar-btn .icon {
+            font-size: 16px;
+            line-height: 1;
+        }
+        .sidebar-btn .label {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .sidebar-btn:hover:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: none;
+            background: #f9fafb;
+        }
+        .sidebar-btn.active {
+            background: #111827;
+            color: #fff;
         }
         .close-btn {
             width: auto;
             padding: 6px 10px;
             background: #e5e7eb;
             color: #111827;
+            box-shadow: none;
+            border: none;
+        }
+        .close-btn:hover:not(:disabled) {
+            transform: none;
             box-shadow: none;
         }
         .instructions-grid {
@@ -289,12 +389,13 @@
         .instructions-textarea {
             width: 100%;
             min-height: 320px;
-            border: 1px solid #d1d5db;
+            border: none;
             border-radius: 8px;
             padding: 10px;
             font-size: 13px;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
             resize: vertical;
+            background: #f8fafc;
         }
         .modal-actions {
             margin-top: 10px;
@@ -302,31 +403,113 @@
             justify-content: flex-end;
             gap: 8px;
         }
-        .enforced-preview {
-            margin-bottom: 14px;
-            padding: 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 10px;
+        .tab-nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .tab-btn {
+            width: auto;
+            padding: 8px 12px;
+            font-size: 13px;
+            border-radius: 8px;
+            border: none;
+            background: #f3f4f6;
+            color: #111827;
+            box-shadow: none;
+        }
+        .tab-btn.active {
+            background: #e5e7eb;
+            color: #111827;
+            font-weight: 600;
+        }
+        .tab-panel {
+            display: none;
+        }
+        .tab-panel.active {
+            display: block;
+        }
+        .reference-block {
+            margin-top: 10px;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
             background: #f9fafb;
         }
-        .enforced-preview h4 {
-            margin: 0 0 8px 0;
-            font-size: 14px;
+        .reference-accordion {
+            margin-bottom: 18px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #f9fafb;
+            padding: 8px 10px;
+        }
+        .reference-accordion summary {
+            cursor: pointer;
+            font-weight: 700;
+            color: #111827;
+            padding: 6px 2px;
+        }
+        .reference-accordion-content {
+            margin-top: 8px;
+        }
+        .global-upload-grid {
+            display: grid;
+            gap: 10px;
+        }
+        .global-upload-item {
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            background: #f9fafb;
+        }
+        .global-upload-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            gap: 8px;
+        }
+        .global-upload-label {
+            font-size: 13px;
+            font-weight: 600;
             color: #111827;
         }
-        .enforced-preview p {
-            margin: 0 0 8px 0;
+        .tooltip {
             font-size: 12px;
             color: #6b7280;
+            cursor: help;
+            border-bottom: 1px dotted #9ca3af;
         }
-        .enforced-preview pre {
+        .global-upload-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 6px;
+        }
+        .global-upload-actions button {
+            width: auto;
+            padding: 8px 12px;
+            font-size: 12px;
+            box-shadow: none;
+        }
+        .file-note {
+            font-size: 12px;
+            color: #4b5563;
+            margin-top: 4px;
+        }
+        .reference-block h4 {
+            margin: 0 0 6px 0;
+            font-size: 13px;
+            color: #111827;
+        }
+        .reference-block pre {
             white-space: pre-wrap;
             font-size: 12px;
-            line-height: 1.45;
+            line-height: 1.4;
             margin: 0;
             color: #111827;
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
+            background: #fff;
+            border: none;
             border-radius: 8px;
             padding: 10px;
             max-height: 220px;
@@ -338,105 +521,171 @@
             background: #e5e7eb;
             color: #111827;
             box-shadow: none;
+            border: none;
+        }
+        @media (max-width: 1200px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+            .layout {
+                max-width: 100%;
+            }
+            .drawer {
+                position: relative;
+                top: 0;
+                height: auto;
+                min-height: 460px;
+                border-left: 1px solid #d1d5db;
+                border-radius: 0;
+            }
         }
         @media (max-width: 900px) {
-            .instructions-grid {
-                grid-template-columns: 1fr;
+            body {
+                padding: 0;
+            }
+            .drawer-nav {
+                flex-wrap: wrap;
             }
         }
     </style>
 </head>
 <body>
-    <div class="layout">
-        <div class="panel container">
-            <button class="instructions-btn" id="instructionsBtn" type="button">See & Edit Instructions</button>
-            <h1>Clairebot</h1>
-            <p class="subtitle">MTM/OTM Report Review Agent</p>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="brand"><span class="brand-badge">C</span> ClaireBot</div>
+        </header>
 
-            <form id="uploadForm">
-                <div class="form-group">
-                    <label>Prompt Mode</label>
-                    <div class="toggle-group">
-                        <input class="toggle-input" type="radio" id="promptComparison" name="promptMode" value="comparison">
-                        <label class="toggle-label" for="promptComparison">Comparison</label>
-                        <input class="toggle-input" type="radio" id="promptFrenchReview" name="promptMode" value="french_review" checked>
-                        <label class="toggle-label" for="promptFrenchReview">French Review</label>
+        <div class="workspace">
+            <main class="layout">
+                <div class="panel container">
+                    <h1>ClaireBot</h1>
+                    <p class="subtitle">MTM/OTM Report Review Agent</p>
+
+                    <form id="uploadForm">
+                        <div class="form-group">
+                            <label>Prompt Mode</label>
+                            <div class="toggle-group">
+                                <input class="toggle-input" type="radio" id="promptFrenchReview" name="promptMode" value="french_review" checked>
+                                <label class="toggle-label" for="promptFrenchReview">French Review</label>
+                                <input class="toggle-input" type="radio" id="promptComparison" name="promptMode" value="comparison">
+                                <label class="toggle-label" for="promptComparison">Comparison</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="reportFile" id="reportFileLabel">French Report File (PDF, PPTX, DOCX)</label>
+                            <input type="file" id="reportFile" accept=".pdf,.pptx,.docx,.doc" required>
+                        </div>
+
+                        <div class="form-group" id="benchmarkGroup">
+                            <label for="benchmarkFile" id="benchmarkFileLabel">English Benchmark File (PDF, PPTX, DOCX)</label>
+                            <input type="file" id="benchmarkFile" accept=".pdf,.pptx,.docx,.doc">
+                        </div>
+
+                        <button type="submit" id="submitBtn">Upload & Review</button>
+                    </form>
+
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <p style="margin-top: 12px; color: #6b7280;">Processing...</p>
+                    </div>
+
+                    <div class="result" id="result">
+                        <div class="result-title" id="resultTitle"></div>
+                        <div class="result-detail" id="resultMessage"></div>
+                        <div class="result-detail" id="resultJobId"></div>
+                        <div class="result-detail" id="resultSheet"></div>
+                        <div class="result-actions">
+                            <button type="button" class="download-btn" id="downloadCsvBtn">Download findings CSV</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <aside class="drawer open" id="rightDrawer">
+            <div class="drawer-nav">
+                <button class="sidebar-btn active" id="navLogsBtn" type="button" title="Backend Logs" aria-label="Backend Logs"><span class="label">Backend Logs</span></button>
+                <button class="sidebar-btn" id="navInstructionsBtn" type="button" title="Instructions" aria-label="Instructions"><span class="label">Instructions</span></button>
+                <button class="sidebar-btn" id="navReferencesBtn" type="button" title="Reference Documents" aria-label="Reference Documents"><span class="label">References</span></button>
+            </div>
+            <div class="drawer-header">
+                <div class="drawer-title" id="drawerTitle">Backend Activity</div>
+            </div>
+
+            <div class="drawer-section active" id="drawerLogs">
+                <ul class="status-list" id="statusList"></ul>
+            </div>
+
+            <div class="drawer-section" id="drawerInstructions">
+                <div class="tab-nav">
+                    <button class="tab-btn active" id="tabComparisonBtn" type="button">Comparison</button>
+                    <button class="tab-btn" id="tabFrenchBtn" type="button">French Review</button>
+                </div>
+
+                <div class="tab-panel active" id="tabComparisonPanel">
+                    <label for="englishInstructionsTextarea">Comparison Instructions (fixed)</label>
+                    <textarea class="instructions-textarea" id="englishInstructionsTextarea" placeholder="Loading comparison instructions..." readonly></textarea>
+                </div>
+
+                <div class="tab-panel" id="tabFrenchPanel">
+                    <label for="frenchInstructionsTextarea">French Review Instructions (fixed)</label>
+                    <textarea class="instructions-textarea" id="frenchInstructionsTextarea" placeholder="Loading French review instructions..." readonly></textarea>
+                </div>
+
+                <div class="modal-actions">
+                </div>
+            </div>
+
+            <div class="drawer-section" id="drawerReferences">
+                <div class="global-upload-grid">
+                    <div class="global-upload-item">
+                        <div class="global-upload-header">
+                            <div class="global-upload-label">Benchmark / Gold Standard Report</div>
+                            <span class="tooltip" title="Upload a previously approved report to compare structure and format against">?</span>
+                        </div>
+                        <input type="file" id="benchmarkGlobalFile" accept=".pptx,.pdf">
+                        <div class="global-upload-actions">
+                            <button class="secondary-btn" id="uploadBenchmarkBtn" type="button">Upload</button>
+                            <button class="secondary-btn" id="removeBenchmarkBtn" type="button">Remove</button>
+                        </div>
+                        <div class="file-note" id="benchmarkGlobalCurrent">Current: none</div>
+                    </div>
+
+                    <div class="global-upload-item">
+                        <div class="global-upload-header">
+                            <div class="global-upload-label">Age References Guidelines</div>
+                        </div>
+                        <input type="file" id="ageGlobalFile" accept=".pdf,.docx">
+                        <div class="global-upload-actions">
+                            <button class="secondary-btn" id="uploadAgeBtn" type="button">Upload</button>
+                            <button class="secondary-btn" id="removeAgeBtn" type="button">Remove</button>
+                        </div>
+                        <div class="file-note" id="ageGlobalCurrent">Current: none</div>
+                    </div>
+
+                    <div class="global-upload-item">
+                        <div class="global-upload-header">
+                            <div class="global-upload-label">Text Preferences Guidelines</div>
+                        </div>
+                        <input type="file" id="textGlobalFile" accept=".pdf,.docx">
+                        <div class="global-upload-actions">
+                            <button class="secondary-btn" id="uploadTextBtn" type="button">Upload</button>
+                            <button class="secondary-btn" id="removeTextBtn" type="button">Remove</button>
+                        </div>
+                        <div class="file-note" id="textGlobalCurrent">Current: none</div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="reportFile" id="reportFileLabel">French Report File (PDF, PPTX, DOCX)</label>
-                    <input type="file" id="reportFile" accept=".pdf,.pptx,.docx,.doc" required>
+                <div class="reference-block" style="margin-top: 10px;">
+                    <h4>Glossary files</h4>
+                    <pre id="glossaryDocsPreview">Loading...</pre>
                 </div>
-
-                <div class="form-group" id="benchmarkGroup">
-                    <label for="benchmarkFile" id="benchmarkFileLabel">English Benchmark File (PDF, PPTX, DOCX)</label>
-                    <input type="file" id="benchmarkFile" accept=".pdf,.pptx,.docx,.doc">
-                </div>
-
-                <button type="submit" id="submitBtn">Upload & Review</button>
-            </form>
-
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p style="margin-top: 12px; color: #6b7280;">Processing...</p>
-            </div>
-
-            <div class="result" id="result">
-                <div class="result-title" id="resultTitle"></div>
-                <div class="result-detail" id="resultMessage"></div>
-                <div class="result-detail" id="resultJobId"></div>
-                <div class="result-detail" id="resultSheet"></div>
-                <div class="result-actions">
-                    <button type="button" class="download-btn" id="downloadCsvBtn">Download findings CSV</button>
+                <div class="reference-block" style="margin-top: 10px;">
+                    <h4>Style guide files</h4>
+                    <pre id="styleGuideDocsPreview">Loading...</pre>
                 </div>
             </div>
-        </div>
-
-        <div class="panel status-panel">
-            <div class="status-title">Backend Activity</div>
-            <ul class="status-list" id="statusList"></ul>
-        </div>
-    </div>
-
-    <div class="modal" id="instructionsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-title">Review Instructions</div>
-                <button class="close-btn" id="closeInstructionsBtn" type="button">Close</button>
-            </div>
-            <div class="enforced-preview">
-                <h4>Enforced phase-based framework</h4>
-                <pre id="phaseFrameworkPreview"></pre>
-            </div>
-            <div class="enforced-preview">
-                <h4>Available prompts in workflow</h4>
-                <p>Comparison prompt</p>
-                <pre id="comparisonPromptPreview"></pre>
-                <p style="margin-top: 10px;">French Review Prompt</p>
-                <pre id="frenchPromptPreview"></pre>
-            </div>
-            <div class="instructions-grid" style="margin-top: 12px;">
-                <div class="instructions-column">
-                    <label for="englishInstructionsTextarea">Comparison Instructions (editable)</label>
-                    <textarea class="instructions-textarea" id="englishInstructionsTextarea" placeholder="Loading comparison instructions..."></textarea>
-                </div>
-                <div class="instructions-column">
-                    <label for="frenchInstructionsTextarea">French Review Instructions (editable)</label>
-                    <textarea class="instructions-textarea" id="frenchInstructionsTextarea" placeholder="Loading French review instructions..."></textarea>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="secondary-btn" id="reloadInstructionsBtn" type="button">Reload</button>
-                <button id="saveInstructionsBtn" type="button">Save Instructions</button>
-            </div>
-            <div class="enforced-preview" style="margin-top: 12px;">
-                <h4>Reference documents in workflow</h4>
-                <p style="font-weight:600; color:#111827;">Glossary files</p>
-                <pre id="glossaryDocsPreview">Loading...</pre>
-                <p style="margin-top:10px; font-weight:600; color:#111827;">Style guide files</p>
-                <pre id="styleGuideDocsPreview">Loading...</pre>
-            </div>
+            </aside>
         </div>
     </div>
 
@@ -448,60 +697,111 @@
         const result = document.getElementById('result');
         const submitBtn = document.getElementById('submitBtn');
         const statusList = document.getElementById('statusList');
-        const instructionsBtn = document.getElementById('instructionsBtn');
-        const instructionsModal = document.getElementById('instructionsModal');
-        const closeInstructionsBtn = document.getElementById('closeInstructionsBtn');
-        const saveInstructionsBtn = document.getElementById('saveInstructionsBtn');
-        const reloadInstructionsBtn = document.getElementById('reloadInstructionsBtn');
+        const navLogsBtn = document.getElementById('navLogsBtn');
+        const navInstructionsBtn = document.getElementById('navInstructionsBtn');
+        const navReferencesBtn = document.getElementById('navReferencesBtn');
+        const drawerTitle = document.getElementById('drawerTitle');
+        const drawerLogs = document.getElementById('drawerLogs');
+        const drawerInstructions = document.getElementById('drawerInstructions');
+        const drawerReferences = document.getElementById('drawerReferences');
+        const tabComparisonBtn = document.getElementById('tabComparisonBtn');
+        const tabFrenchBtn = document.getElementById('tabFrenchBtn');
+        const tabComparisonPanel = document.getElementById('tabComparisonPanel');
+        const tabFrenchPanel = document.getElementById('tabFrenchPanel');
         const downloadCsvBtn = document.getElementById('downloadCsvBtn');
-        const phaseFrameworkPreview = document.getElementById('phaseFrameworkPreview');
-        const comparisonPromptPreview = document.getElementById('comparisonPromptPreview');
-        const frenchPromptPreview = document.getElementById('frenchPromptPreview');
         const englishInstructionsTextarea = document.getElementById('englishInstructionsTextarea');
         const frenchInstructionsTextarea = document.getElementById('frenchInstructionsTextarea');
         const glossaryDocsPreview = document.getElementById('glossaryDocsPreview');
         const styleGuideDocsPreview = document.getElementById('styleGuideDocsPreview');
+        const benchmarkGlobalFile = document.getElementById('benchmarkGlobalFile');
+        const ageGlobalFile = document.getElementById('ageGlobalFile');
+        const textGlobalFile = document.getElementById('textGlobalFile');
+        const uploadBenchmarkBtn = document.getElementById('uploadBenchmarkBtn');
+        const uploadAgeBtn = document.getElementById('uploadAgeBtn');
+        const uploadTextBtn = document.getElementById('uploadTextBtn');
+        const removeBenchmarkBtn = document.getElementById('removeBenchmarkBtn');
+        const removeAgeBtn = document.getElementById('removeAgeBtn');
+        const removeTextBtn = document.getElementById('removeTextBtn');
+        const benchmarkGlobalCurrent = document.getElementById('benchmarkGlobalCurrent');
+        const ageGlobalCurrent = document.getElementById('ageGlobalCurrent');
+        const textGlobalCurrent = document.getElementById('textGlobalCurrent');
         let latestFindings = [];
 
-        const ENFORCED_PHASE_FRAMEWORK = `Instructions:
-    Phase 1: Role & Core Function
-    -Role/Task/Output Format
-    Phase 2: Linguistic & Stylistic Rules (Radio-Canada/MTM Standards)
-    -Glossary/Language Purity/Age References/Casing/Footnotes/Text preferences
-    Phase 3: The Comparison Rules
-    -Benchmark/Data Matching/Target Sample/Translation Alignment/Review of the English report
-    Phase 4: Visual & Technical Verification
-    -Logos/Consistency/Summary/Graphics/Navigation (TOC)/Methodology/Date`;
+        function setInstructionsTab(tabName) {
+            const isComparison = tabName === 'comparison';
+            const isFrench = tabName === 'french';
 
-        const ENFORCED_COMPARISON_PROMPT = `Comparison prompt: You’re a master editor of MTM/OTM reports. To complete your task, you will compare the following reports. Follow every step listed in your instructions (Phase 1, Phase 2, Phase 3, Phase 4, Phase 5), perform a strict language purity double-check with an emphasis on the French report, make sure that numbers match, formatting is aligned and logos are accurate. Flag issues that you find both in the French and English reports. Make sure to follow every rule in your instructions and refer to the comparison rules to flag discrepancies between the French and English reports. Double check every step before providing your feedback.`;
+            tabComparisonBtn.classList.toggle('active', isComparison);
+            tabFrenchBtn.classList.toggle('active', isFrench);
 
-        const ENFORCED_FRENCH_REVIEW_PROMPT = `French Review Prompt: You’re a master editor of OTM reports. To complete your task, you will review the following report. Follow every step listed in Phase 1, Phase 2, Phase 3 and Phase 5 of your instructions (exclude Phase 4), perform a strict language purity double-check, make sure that numbers match the text, formatting is aligned and logos are accurate. Double check every step before providing your feedback.`;
+            tabComparisonPanel.classList.toggle('active', isComparison);
+            tabFrenchPanel.classList.toggle('active', isFrench);
+        }
 
-        instructionsBtn.addEventListener('click', async () => {
-            instructionsModal.style.display = 'flex';
-            phaseFrameworkPreview.textContent = ENFORCED_PHASE_FRAMEWORK;
-            comparisonPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
-            frenchPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
+        function setActiveSidebar(button) {
+            [navLogsBtn, navInstructionsBtn, navReferencesBtn].forEach((btn) => {
+                btn.classList.toggle('active', btn === button);
+            });
+        }
+
+        function openDrawer(sectionName) {
+            drawerLogs.classList.toggle('active', sectionName === 'logs');
+            drawerInstructions.classList.toggle('active', sectionName === 'instructions');
+            drawerReferences.classList.toggle('active', sectionName === 'references');
+            drawerTitle.textContent = sectionName === 'logs'
+                ? 'Backend Activity'
+                : sectionName === 'instructions'
+                    ? 'Review Instructions'
+                    : 'Reference Documents';
+        }
+
+        navLogsBtn.addEventListener('click', () => {
+            setActiveSidebar(navLogsBtn);
+            openDrawer('logs');
+        });
+
+        navInstructionsBtn.addEventListener('click', async () => {
+            setActiveSidebar(navInstructionsBtn);
+            openDrawer('instructions');
+            setInstructionsTab('comparison');
             await loadInstructions();
+        });
+
+        navReferencesBtn.addEventListener('click', async () => {
+            setActiveSidebar(navReferencesBtn);
+            openDrawer('references');
             await loadReferenceDocuments();
         });
+
+        tabComparisonBtn.addEventListener('click', () => setInstructionsTab('comparison'));
+        tabFrenchBtn.addEventListener('click', () => setInstructionsTab('french'));
 
         document.querySelectorAll('input[name="promptMode"]').forEach((radio) => {
             radio.addEventListener('change', updateFileInputsByPromptMode);
         });
 
-        closeInstructionsBtn.addEventListener('click', () => {
-            instructionsModal.style.display = 'none';
+        uploadBenchmarkBtn.addEventListener('click', async () => {
+            await uploadGlobalReference('benchmark_report', benchmarkGlobalFile);
         });
 
-        reloadInstructionsBtn.addEventListener('click', async () => {
-            await loadInstructions();
-            await loadReferenceDocuments();
-            addStatus('Instructions and reference files reloaded.');
+        uploadAgeBtn.addEventListener('click', async () => {
+            await uploadGlobalReference('age_references', ageGlobalFile);
         });
 
-        saveInstructionsBtn.addEventListener('click', async () => {
-            await saveInstructions();
+        uploadTextBtn.addEventListener('click', async () => {
+            await uploadGlobalReference('text_preferences', textGlobalFile);
+        });
+
+        removeBenchmarkBtn.addEventListener('click', async () => {
+            await removeGlobalReference('benchmark_report');
+        });
+
+        removeAgeBtn.addEventListener('click', async () => {
+            await removeGlobalReference('age_references');
+        });
+
+        removeTextBtn.addEventListener('click', async () => {
+            await removeGlobalReference('text_preferences');
         });
 
         downloadCsvBtn.addEventListener('click', () => {
@@ -659,33 +959,12 @@
                 if (!response.ok) {
                     throw new Error(data.detail || 'Failed to load instructions');
                 }
-                englishInstructionsTextarea.value = data.english_instructions || '';
+                englishInstructionsTextarea.value = data.comparison_instructions || '';
                 frenchInstructionsTextarea.value = data.french_instructions || '';
             } catch (error) {
                 englishInstructionsTextarea.value = '';
                 frenchInstructionsTextarea.value = '';
                 addStatus('Failed to load instructions.');
-            }
-        }
-
-        async function saveInstructions() {
-            const english_instructions = englishInstructionsTextarea.value || '';
-            const french_instructions = frenchInstructionsTextarea.value || '';
-            try {
-                const response = await fetch('/instructions', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ english_instructions, french_instructions })
-                });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.detail || 'Failed to save instructions');
-                }
-                englishInstructionsTextarea.value = data.english_instructions || '';
-                frenchInstructionsTextarea.value = data.french_instructions || '';
-                addStatus('Instructions saved. Saved values override hardcoded prompts.');
-            } catch (error) {
-                addStatus('Failed to save instructions.');
             }
         }
 
@@ -708,9 +987,61 @@
                 styleGuideDocsPreview.textContent = styles.length
                     ? styles.map((d) => `• ${d.name}`).join('\n')
                     : 'No style guide files found.';
+
+                const globalUploads = data.global_uploads || {};
+                benchmarkGlobalCurrent.textContent = `Current: ${globalUploads.benchmark_report || 'none'}`;
+                ageGlobalCurrent.textContent = `Current: ${globalUploads.age_references || 'none'}`;
+                textGlobalCurrent.textContent = `Current: ${globalUploads.text_preferences || 'none'}`;
             } catch (error) {
                 glossaryDocsPreview.textContent = 'Failed to load glossary files.';
                 styleGuideDocsPreview.textContent = 'Failed to load style guide files.';
+                benchmarkGlobalCurrent.textContent = 'Current: unknown';
+                ageGlobalCurrent.textContent = 'Current: unknown';
+                textGlobalCurrent.textContent = 'Current: unknown';
+            }
+        }
+
+        async function uploadGlobalReference(category, inputEl) {
+            const selected = inputEl.files && inputEl.files[0];
+            if (!selected) {
+                addStatus('Please select a file before uploading.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('category', category);
+            formData.append('file', selected);
+
+            try {
+                const response = await fetch('/references/global-upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Upload failed');
+                }
+                addStatus(`Global reference uploaded: ${data.file_name}`);
+                inputEl.value = '';
+                await loadReferenceDocuments();
+            } catch (error) {
+                addStatus(`Global upload failed: ${error.message || 'Unknown error'}`);
+            }
+        }
+
+        async function removeGlobalReference(category) {
+            try {
+                const response = await fetch(`/references/global-upload?category=${encodeURIComponent(category)}`, {
+                    method: 'DELETE',
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Remove failed');
+                }
+                addStatus(`Global reference removed for category: ${category}`);
+                await loadReferenceDocuments();
+            } catch (error) {
+                addStatus(`Failed to remove global reference: ${error.message || 'Unknown error'}`);
             }
         }
 
@@ -761,6 +1092,7 @@
         }
 
         updateFileInputsByPromptMode();
+        loadReferenceDocuments();
     </script>
 </body>
 </html>

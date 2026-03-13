@@ -148,6 +148,13 @@ def get_reference_documents() -> List[Dict[str, str]]:
     return list(_reference_documents)
 
 
+def reload_reference_documents() -> None:
+    """Force refresh of cached reference documents and derived rules."""
+    global _loaded
+    _loaded = False
+    load_reference_documents()
+
+
 def _classify_reference_document(path: Path) -> str:
     suffix = path.suffix.lower()
     name = path.name.lower()

@@ -39,10 +39,5 @@ class HealthResponse(BaseModel):
 
 
 class InstructionsResponse(BaseModel):
-    english_instructions: str
-    french_instructions: str
-
-
-class InstructionsUpdateRequest(BaseModel):
-    english_instructions: str
+    comparison_instructions: str
     french_instructions: str

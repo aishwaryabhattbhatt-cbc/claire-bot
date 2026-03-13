@@ -3,24 +3,52 @@ from typing import List, Optional
 from app.models import ParsedDocument
 
 
-ENFORCED_PHASE_INSTRUCTIONS = """Instructions:
+BASE_INSTRUCTIONS = """Instructions:
 Phase 1: Role & Core Function
--Role/Task/Output Format
+- Role: You are Clairebot, a precision-first QA editor for MTM/OTM reports.
+- Task: Detect only clear, evidence-based issues from provided content.
+- Output: Return JSON only as {"findings":[{page_number, language, issue_detected, proposed_change}]}.
+
 Phase 2: Linguistic & Stylistic Rules (Radio-Canada/MTM Standards)
--Glossary/Language Purity/Age References/Casing/Footnotes/Text preferences
-Phase 3: The Comparison Rules
--Benchmark/Data Matching/Target Sample/Translation Alignment/Review of the English report
+- Enforce approved glossary, language purity, age references, casing, footnotes, and text preferences.
+
+Phase 3: Comparison Rules
+- Flag only material mismatches in data, claims, labels, sample/methodology wording, and translation alignment.
+
 Phase 4: Visual & Technical Verification
--Logos/Consistency/Summary/Graphics/Navigation (TOC)/Methodology/Date
+- Check logos, formatting consistency, summary alignment, graphics labels, TOC/navigation, methodology/date consistency.
+
+Precision rules:
+- High-confidence findings only; if uncertain, do not report.
+- Never invent content.
+- Use exact page numbers from input.
+- No prose outside JSON.
 """
 
 
-ENFORCED_COMPARISON_PROMPT = """Comparison prompt: You’re a master editor of MTM/OTM reports. To complete your task, you will compare the following reports. Follow every step listed in your instructions (Phase 1, Phase 2, Phase 3, Phase 4, Phase 5), perform a strict language purity double-check with an emphasis on the French report, make sure that numbers match, formatting is aligned and logos are accurate. Flag issues that you find both in the French and English reports. Make sure to follow every rule in your instructions and refer to the comparison rules to flag discrepancies between the French and English reports. Double check every step before providing your feedback.
+COMPARISON_INSTRUCTIONS = """Comparison prompt:
+- Full-document comparison is required.
+- Compare all French pages against all benchmark English pages end-to-end.
+- Treat benchmark English as source of truth for facts and meaning.
+- Flag issues in French and English when clearly incorrect or inconsistent.
+- Prioritize factual mismatches over stylistic preference.
+- Propose minimal, direct corrections.
 """
 
 
-ENFORCED_FRENCH_REVIEW_PROMPT = """French Review Prompt: You’re a master editor of OTM reports. To complete your task, you will review the following report. Follow every step listed in Phase 1, Phase 2, Phase 3 and Phase 5 of your instructions (exclude Phase 4), perform a strict language purity double-check, make sure that numbers match the text, formatting is aligned and logos are accurate. Double check every step before providing your feedback.
+FRENCH_REVIEW_INSTRUCTIONS = """French Review prompt:
+- Full-document French-only review is required.
+- Do not assume benchmark context.
+- Enforce French language purity and approved terminology.
+- Flag clear grammar/spelling/terminology/footnote consistency issues.
+- Keep findings high-confidence, concise, and actionable.
 """
+
+
+def get_fixed_mode_instructions(prompt_mode: Optional[str]) -> str:
+    mode = (prompt_mode or "french_review").strip().lower()
+    mode_block = COMPARISON_INSTRUCTIONS if mode == "comparison" else FRENCH_REVIEW_INSTRUCTIONS
+    return BASE_INSTRUCTIONS + "\n" + mode_block
 
 
 def build_review_prompt(
@@ -37,22 +65,17 @@ def build_review_prompt(
         report: Parsed French or English report
         benchmark: Parsed English benchmark report (optional)
 
+        instructions_text: Instructions text to include in the prompt
+        reference_context: Reference documents context
+        prompt_mode: 'comparison' or 'french_review'
+
     Returns:
         Prompt string
     """
+    # Instructions are fixed by mode. `instructions_text` is kept only for backward-compatible signatures.
+    _ = instructions_text
     comparison_mode = benchmark is not None
-
-    mode = (prompt_mode or "french_review").strip().lower()
-    if mode == "comparison":
-        scenario_prompt = ENFORCED_COMPARISON_PROMPT
-    else:
-        scenario_prompt = ENFORCED_FRENCH_REVIEW_PROMPT
-
-    custom_rules = (instructions_text or "").strip()
-    if custom_rules:
-        rules_text = custom_rules
-    else:
-        rules_text = ENFORCED_PHASE_INSTRUCTIONS + "\n" + scenario_prompt
+    rules_text = get_fixed_mode_instructions(prompt_mode)
 
     header = (
         "You are Clairebot, an expert editor for MTM/OTM reports. "
@@ -60,9 +83,11 @@ def build_review_prompt(
         "Return output as JSON ONLY. Use an object with key 'findings' containing a list of issues. "
         "Each issue must contain: "
         "page_number (int), language (French|English), issue_detected (string), proposed_change (string).\n\n"
-        f"Instructions:\n{rules_text}\n\n"
-        "Return NO explanations outside the JSON.\n\n"
     )
+
+    header += f"Instructions:\n{rules_text}\n\n"
+
+    header += "Return NO explanations outside the JSON.\n\n"
 
     report_block = [
         f"Report Language: {report.metadata.language}",

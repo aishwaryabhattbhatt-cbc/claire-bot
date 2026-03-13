@@ -1,29 +1,44 @@
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, UploadFile, HTTPException
+from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Query
 
-from app.schemas import FileUploadResponse, InstructionsResponse, InstructionsUpdateRequest
+from app.schemas import FileUploadResponse, InstructionsResponse
 from app.services import generate_job_id, save_uploaded_file
 from app.services.parser_service import DocumentParserService
 from app.services.llm_service import review_with_llm
 from app.services.sheets_service import GoogleSheetsWriterService
-from app.services.instructions_service import InstructionsService
 from app.services.rule_engine import run_deterministic_checks
 from app.services.reference_service import (
     get_reference_context,
     get_reference_documents,
     get_reference_glossary_rules,
+    reload_reference_documents,
     get_reference_style_rules,
 )
+from app.prompts.review_prompt import get_fixed_mode_instructions
 from app.core.config import get_settings
 
 router = APIRouter()
 parser_service = DocumentParserService()
-instructions_service = InstructionsService()
 settings = get_settings()
 
 ALLOWED_EXTENSIONS = {".pdf", ".pptx", ".docx", ".doc"}
+
+GLOBAL_REFERENCE_UPLOADS = {
+    "benchmark_report": {
+        "prefix": "benchmark_report",
+        "extensions": {".pptx", ".pdf"},
+    },
+    "age_references": {
+        "prefix": "age_references",
+        "extensions": {".pdf", ".docx"},
+    },
+    "text_preferences": {
+        "prefix": "text_preferences",
+        "extensions": {".pdf", ".docx"},
+    },
+}
 
 
 @router.post("/review", response_model=FileUploadResponse)
@@ -141,11 +156,7 @@ async def upload_report(
     findings_count = None
     llm_status = "skipped"
     llm_error = None
-    instruction_payload = instructions_service.get_instructions()
-    if prompt_mode == "comparison":
-        instructions_text = instruction_payload.get("english_instructions", "")
-    else:
-        instructions_text = instruction_payload.get("french_instructions", "")
+    instructions_text = get_fixed_mode_instructions(prompt_mode)
     try:
         llm_findings = review_with_llm(
             parsed_report,
@@ -201,22 +212,9 @@ async def upload_report(
 
 @router.get("/instructions", response_model=InstructionsResponse)
 def get_instructions() -> InstructionsResponse:
-    payload = instructions_service.get_instructions()
     return InstructionsResponse(
-        english_instructions=payload.get("english_instructions", ""),
-        french_instructions=payload.get("french_instructions", ""),
-    )
-
-
-@router.put("/instructions", response_model=InstructionsResponse)
-def update_instructions(payload: InstructionsUpdateRequest) -> InstructionsResponse:
-    saved = instructions_service.save_instructions(
-        payload.english_instructions,
-        payload.french_instructions,
-    )
-    return InstructionsResponse(
-        english_instructions=saved.get("english_instructions", ""),
-        french_instructions=saved.get("french_instructions", ""),
+        comparison_instructions=get_fixed_mode_instructions("comparison"),
+        french_instructions=get_fixed_mode_instructions("french_review"),
     )
 
 
@@ -232,6 +230,80 @@ def get_references() -> dict:
         "glossary_documents": glossary_docs,
         "style_guide_documents": style_docs,
         "other_documents": other_docs,
+        "global_uploads": _get_global_uploads(docs),
+    }
+
+
+@router.post("/references/global-upload")
+async def upload_global_reference(
+    category: str = Form(...),
+    file: UploadFile = File(...),
+) -> dict:
+    """Upload or replace global reference files used in workflow."""
+    if category not in GLOBAL_REFERENCE_UPLOADS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid category. Allowed: {', '.join(GLOBAL_REFERENCE_UPLOADS.keys())}",
+        )
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="File name is required")
+
+    config = GLOBAL_REFERENCE_UPLOADS[category]
+    ext = Path(file.filename).suffix.lower()
+    if ext not in config["extensions"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type for {category}. Allowed: {', '.join(sorted(config['extensions']))}",
+        )
+
+    ref_dir = Path(settings.reference_dir)
+    ref_dir.mkdir(parents=True, exist_ok=True)
+
+    prefix = config["prefix"]
+    for existing in ref_dir.glob(f"{prefix}.*"):
+        existing.unlink(missing_ok=True)
+
+    destination = ref_dir / f"{prefix}{ext}"
+    content = await file.read()
+    destination.write_bytes(content)
+
+    reload_reference_documents()
+
+    docs = get_reference_documents()
+    return {
+        "status": "success",
+        "category": category,
+        "file_name": destination.name,
+        "global_uploads": _get_global_uploads(docs),
+    }
+
+
+@router.delete("/references/global-upload")
+def delete_global_reference(category: str = Query(...)) -> dict:
+    """Remove a previously uploaded global reference file for a given category."""
+    if category not in GLOBAL_REFERENCE_UPLOADS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid category. Allowed: {', '.join(GLOBAL_REFERENCE_UPLOADS.keys())}",
+        )
+
+    ref_dir = Path(settings.reference_dir)
+    ref_dir.mkdir(parents=True, exist_ok=True)
+    prefix = GLOBAL_REFERENCE_UPLOADS[category]["prefix"]
+
+    removed = []
+    for existing in ref_dir.glob(f"{prefix}.*"):
+        removed.append(existing.name)
+        existing.unlink(missing_ok=True)
+
+    reload_reference_documents()
+    docs = get_reference_documents()
+    return {
+        "status": "success",
+        "category": category,
+        "removed_files": removed,
+        "global_uploads": _get_global_uploads(docs),
     }
 
 
@@ -250,6 +322,22 @@ def _dedupe_findings(findings: list[dict]) -> list[dict]:
         seen.add(key)
         unique.append(item)
     return unique
+
+
+def _get_global_uploads(docs: list[dict]) -> dict:
+    by_name = {d.get("name", ""): d for d in docs}
+
+    def find(prefix: str) -> Optional[str]:
+        for name in by_name.keys():
+            if name.startswith(prefix + "."):
+                return name
+        return None
+
+    return {
+        "benchmark_report": find("benchmark_report"),
+        "age_references": find("age_references"),
+        "text_preferences": find("text_preferences"),
+    }
 
 
 @router.get("/review/{job_id}")

@@ -28,9 +28,9 @@ ALLOWED_EXTENSIONS = {".pdf", ".pptx", ".docx", ".doc"}
 @router.post("/review", response_model=FileUploadResponse)
 async def upload_report(
     file: UploadFile = File(...),
-    report_language: str = Form(...),
+    report_language: str = Form("French"),
     comparison_mode: bool = Form(False),
-    prompt_mode: str = Form("auto"),
+    prompt_mode: str = Form("french_review"),
     benchmark_file: Optional[UploadFile] = File(None),
 ) -> FileUploadResponse:
     """
@@ -60,11 +60,11 @@ async def upload_report(
     if report_language not in ["French", "English"]:
         raise HTTPException(status_code=400, detail="Language must be 'French' or 'English'")
 
-    allowed_prompt_modes = {"auto", "comparison", "french_review"}
+    allowed_prompt_modes = {"comparison", "french_review"}
     if prompt_mode not in allowed_prompt_modes:
         raise HTTPException(
             status_code=400,
-            detail="prompt_mode must be one of: auto, comparison, french_review",
+            detail="prompt_mode must be one of: comparison, french_review",
         )
 
     if prompt_mode == "comparison" and not comparison_mode:

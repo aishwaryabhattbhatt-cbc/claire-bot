@@ -360,16 +360,6 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Report Language</label>
-                    <div class="toggle-group">
-                        <input class="toggle-input" type="radio" id="langFrench" name="language" value="French" required>
-                        <label class="toggle-label" for="langFrench">French</label>
-                        <input class="toggle-input" type="radio" id="langEnglish" name="language" value="English" required>
-                        <label class="toggle-label" for="langEnglish">English</label>
-                    </div>
-                </div>
-
-                <div class="form-group">
                     <div class="checkbox-group">
                         <input type="checkbox" id="comparisonMode">
                         <label for="comparisonMode" class="checkbox-label">Compare against benchmark report</label>
@@ -379,11 +369,9 @@
                 <div class="form-group">
                     <label>Prompt Mode</label>
                     <div class="toggle-group">
-                        <input class="toggle-input" type="radio" id="promptAuto" name="promptMode" value="auto" checked>
-                        <label class="toggle-label" for="promptAuto">Auto</label>
                         <input class="toggle-input" type="radio" id="promptComparison" name="promptMode" value="comparison">
                         <label class="toggle-label" for="promptComparison">Comparison</label>
-                        <input class="toggle-input" type="radio" id="promptFrenchReview" name="promptMode" value="french_review">
+                        <input class="toggle-input" type="radio" id="promptFrenchReview" name="promptMode" value="french_review" checked>
                         <label class="toggle-label" for="promptFrenchReview">French Review</label>
                     </div>
                 </div>
@@ -433,6 +421,13 @@
                 <p id="activeScenarioLabel">Active scenario: -</p>
                 <pre id="scenarioPromptPreview"></pre>
             </div>
+            <div class="enforced-preview">
+                <h4>Available prompts in workflow</h4>
+                <p>Comparison prompt</p>
+                <pre id="comparisonPromptPreview"></pre>
+                <p style="margin-top: 10px;">French Review Prompt</p>
+                <pre id="frenchPromptPreview"></pre>
+            </div>
         </div>
     </div>
 
@@ -451,6 +446,8 @@
         const phaseFrameworkPreview = document.getElementById('phaseFrameworkPreview');
         const scenarioPromptPreview = document.getElementById('scenarioPromptPreview');
         const activeScenarioLabel = document.getElementById('activeScenarioLabel');
+        const comparisonPromptPreview = document.getElementById('comparisonPromptPreview');
+        const frenchPromptPreview = document.getElementById('frenchPromptPreview');
         let latestFindings = [];
 
         const ENFORCED_PHASE_FRAMEWORK = `Instructions:
@@ -472,9 +469,6 @@
             updateScenarioPromptPreview();
         });
 
-        document.querySelectorAll('input[name="language"]').forEach((radio) => {
-            radio.addEventListener('change', () => updateScenarioPromptPreview());
-        });
         document.querySelectorAll('input[name="promptMode"]').forEach((radio) => {
             radio.addEventListener('change', () => updateScenarioPromptPreview());
         });
@@ -482,6 +476,8 @@
         instructionsBtn.addEventListener('click', async () => {
             instructionsModal.style.display = 'flex';
             phaseFrameworkPreview.textContent = ENFORCED_PHASE_FRAMEWORK;
+            comparisonPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
+            frenchPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
             updateScenarioPromptPreview();
         });
 
@@ -497,18 +493,13 @@
             e.preventDefault();
 
             const reportFile = document.getElementById('reportFile').files[0];
-            const language = document.querySelector('input[name="language"]:checked')?.value;
+            const language = 'French';
             const comparisonMode = comparisonCheckbox.checked;
-            const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'auto';
+            const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'french_review';
             const benchmarkFile = document.getElementById('benchmarkFile').files[0];
 
             if (!reportFile) {
                 showResult('error', 'Error', 'Please select a report file');
-                return;
-            }
-
-            if (!language) {
-                showResult('error', 'Error', 'Please select a language');
                 return;
             }
 
@@ -632,9 +623,7 @@
         }
 
         function updateScenarioPromptPreview() {
-            const comparisonMode = comparisonCheckbox.checked;
-            const language = document.querySelector('input[name="language"]:checked')?.value;
-            const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'auto';
+            const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'french_review';
 
             if (promptMode === 'comparison') {
                 activeScenarioLabel.textContent = 'Active scenario: Comparison prompt (forced by toggle)';
@@ -642,26 +631,8 @@
                 return;
             }
 
-            if (promptMode === 'french_review') {
-                activeScenarioLabel.textContent = 'Active scenario: French review prompt (forced by toggle)';
-                scenarioPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
-                return;
-            }
-
-            if (comparisonMode) {
-                activeScenarioLabel.textContent = 'Active scenario: Comparison mode (auto)';
-                scenarioPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
-                return;
-            }
-
-            if (language === 'French') {
-                activeScenarioLabel.textContent = 'Active scenario: French review (auto)';
-                scenarioPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
-                return;
-            }
-
-            activeScenarioLabel.textContent = 'Active scenario: Comparison prompt (default)';
-            scenarioPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
+            activeScenarioLabel.textContent = 'Active scenario: French review prompt (forced by toggle)';
+            scenarioPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
         }
 
         function downloadFindingsCsv() {

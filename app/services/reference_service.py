@@ -20,6 +20,7 @@ _SUPPORTED_EXTENSIONS = {".pdf", ".pptx", ".docx", ".doc", ".xlsx", ".xls"}
 _reference_context: Optional[str] = None
 _reference_glossary_rules: List[Dict[str, str]] = []
 _reference_style_rules: List[Dict[str, str]] = []
+_reference_documents: List[Dict[str, str]] = []
 _loaded: bool = False
 
 
@@ -28,7 +29,7 @@ def load_reference_documents() -> None:
     Parse all documents in the reference directory and cache their text.
     Call once during application startup.
     """
-    global _reference_context, _reference_glossary_rules, _reference_style_rules, _loaded
+    global _reference_context, _reference_glossary_rules, _reference_style_rules, _reference_documents, _loaded
     if _loaded:
         return
 
@@ -40,6 +41,7 @@ def load_reference_documents() -> None:
         _reference_context = None
         _reference_glossary_rules = []
         _reference_style_rules = []
+        _reference_documents = []
         _loaded = True
         return
 
@@ -59,12 +61,21 @@ def load_reference_documents() -> None:
         _reference_context = None
         _reference_glossary_rules = []
         _reference_style_rules = []
+        _reference_documents = []
         _loaded = True
         return
 
     glossary_rules: List[Dict[str, str]] = []
     style_rules: List[Dict[str, str]] = []
+    documents_meta: List[Dict[str, str]] = []
     for path in files:
+        doc_type = _classify_reference_document(path)
+        documents_meta.append(
+            {
+                "name": path.name,
+                "type": doc_type,
+            }
+        )
         try:
             parsed = parser.parse_document(path, language="English")
             doc_text_parts = []
@@ -104,6 +115,8 @@ def load_reference_documents() -> None:
     if _reference_style_rules:
         logger.info("Reference style rules loaded: %d", len(_reference_style_rules))
 
+    _reference_documents = documents_meta
+
     _loaded = True
 
 
@@ -126,6 +139,23 @@ def get_reference_style_rules() -> List[Dict[str, str]]:
     if not _loaded:
         load_reference_documents()
     return list(_reference_style_rules)
+
+
+def get_reference_documents() -> List[Dict[str, str]]:
+    """Return reference document metadata for UI display."""
+    if not _loaded:
+        load_reference_documents()
+    return list(_reference_documents)
+
+
+def _classify_reference_document(path: Path) -> str:
+    suffix = path.suffix.lower()
+    name = path.name.lower()
+    if suffix in {".xlsx", ".xls"}:
+        return "glossary"
+    if _looks_like_style_guide(name):
+        return "style_guide"
+    return "reference"
 
 
 def _extract_glossary_rules_from_xlsx(path: Path) -> List[Dict[str, str]]:

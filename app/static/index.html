@@ -349,7 +349,7 @@
 <body>
     <div class="layout">
         <div class="panel container">
-            <button class="instructions-btn" id="instructionsBtn" type="button">See Instructions</button>
+            <button class="instructions-btn" id="instructionsBtn" type="button">See & Edit Instructions</button>
             <h1>Clairebot</h1>
             <p class="subtitle">MTM/OTM Report Review Agent</p>
 
@@ -416,6 +416,27 @@
                 <p style="margin-top: 10px;">French Review Prompt</p>
                 <pre id="frenchPromptPreview"></pre>
             </div>
+            <div class="instructions-grid" style="margin-top: 12px;">
+                <div class="instructions-column">
+                    <label for="englishInstructionsTextarea">Comparison Instructions (editable)</label>
+                    <textarea class="instructions-textarea" id="englishInstructionsTextarea" placeholder="Loading comparison instructions..."></textarea>
+                </div>
+                <div class="instructions-column">
+                    <label for="frenchInstructionsTextarea">French Review Instructions (editable)</label>
+                    <textarea class="instructions-textarea" id="frenchInstructionsTextarea" placeholder="Loading French review instructions..."></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="secondary-btn" id="reloadInstructionsBtn" type="button">Reload</button>
+                <button id="saveInstructionsBtn" type="button">Save Instructions</button>
+            </div>
+            <div class="enforced-preview" style="margin-top: 12px;">
+                <h4>Reference documents in workflow</h4>
+                <p style="font-weight:600; color:#111827;">Glossary files</p>
+                <pre id="glossaryDocsPreview">Loading...</pre>
+                <p style="margin-top:10px; font-weight:600; color:#111827;">Style guide files</p>
+                <pre id="styleGuideDocsPreview">Loading...</pre>
+            </div>
         </div>
     </div>
 
@@ -430,10 +451,16 @@
         const instructionsBtn = document.getElementById('instructionsBtn');
         const instructionsModal = document.getElementById('instructionsModal');
         const closeInstructionsBtn = document.getElementById('closeInstructionsBtn');
+        const saveInstructionsBtn = document.getElementById('saveInstructionsBtn');
+        const reloadInstructionsBtn = document.getElementById('reloadInstructionsBtn');
         const downloadCsvBtn = document.getElementById('downloadCsvBtn');
         const phaseFrameworkPreview = document.getElementById('phaseFrameworkPreview');
         const comparisonPromptPreview = document.getElementById('comparisonPromptPreview');
         const frenchPromptPreview = document.getElementById('frenchPromptPreview');
+        const englishInstructionsTextarea = document.getElementById('englishInstructionsTextarea');
+        const frenchInstructionsTextarea = document.getElementById('frenchInstructionsTextarea');
+        const glossaryDocsPreview = document.getElementById('glossaryDocsPreview');
+        const styleGuideDocsPreview = document.getElementById('styleGuideDocsPreview');
         let latestFindings = [];
 
         const ENFORCED_PHASE_FRAMEWORK = `Instructions:
@@ -455,6 +482,8 @@
             phaseFrameworkPreview.textContent = ENFORCED_PHASE_FRAMEWORK;
             comparisonPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
             frenchPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
+            await loadInstructions();
+            await loadReferenceDocuments();
         });
 
         document.querySelectorAll('input[name="promptMode"]').forEach((radio) => {
@@ -463,6 +492,16 @@
 
         closeInstructionsBtn.addEventListener('click', () => {
             instructionsModal.style.display = 'none';
+        });
+
+        reloadInstructionsBtn.addEventListener('click', async () => {
+            await loadInstructions();
+            await loadReferenceDocuments();
+            addStatus('Instructions and reference files reloaded.');
+        });
+
+        saveInstructionsBtn.addEventListener('click', async () => {
+            await saveInstructions();
         });
 
         downloadCsvBtn.addEventListener('click', () => {
@@ -608,6 +647,70 @@
                 sheetNode.innerHTML = `Google Sheets: <a href="${sheetsUrl}" target="_blank" rel="noopener noreferrer">Open output</a>`;
             } else {
                 sheetNode.textContent = '';
+            }
+        }
+
+        async function loadInstructions() {
+            englishInstructionsTextarea.value = 'Loading...';
+            frenchInstructionsTextarea.value = 'Loading...';
+            try {
+                const response = await fetch('/instructions');
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to load instructions');
+                }
+                englishInstructionsTextarea.value = data.english_instructions || '';
+                frenchInstructionsTextarea.value = data.french_instructions || '';
+            } catch (error) {
+                englishInstructionsTextarea.value = '';
+                frenchInstructionsTextarea.value = '';
+                addStatus('Failed to load instructions.');
+            }
+        }
+
+        async function saveInstructions() {
+            const english_instructions = englishInstructionsTextarea.value || '';
+            const french_instructions = frenchInstructionsTextarea.value || '';
+            try {
+                const response = await fetch('/instructions', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ english_instructions, french_instructions })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to save instructions');
+                }
+                englishInstructionsTextarea.value = data.english_instructions || '';
+                frenchInstructionsTextarea.value = data.french_instructions || '';
+                addStatus('Instructions saved. Saved values override hardcoded prompts.');
+            } catch (error) {
+                addStatus('Failed to save instructions.');
+            }
+        }
+
+        async function loadReferenceDocuments() {
+            glossaryDocsPreview.textContent = 'Loading...';
+            styleGuideDocsPreview.textContent = 'Loading...';
+            try {
+                const response = await fetch('/references');
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to load references');
+                }
+
+                const glossary = Array.isArray(data.glossary_documents) ? data.glossary_documents : [];
+                const styles = Array.isArray(data.style_guide_documents) ? data.style_guide_documents : [];
+
+                glossaryDocsPreview.textContent = glossary.length
+                    ? glossary.map((d) => `• ${d.name}`).join('\n')
+                    : 'No glossary files found.';
+                styleGuideDocsPreview.textContent = styles.length
+                    ? styles.map((d) => `• ${d.name}`).join('\n')
+                    : 'No style guide files found.';
+            } catch (error) {
+                glossaryDocsPreview.textContent = 'Failed to load glossary files.';
+                styleGuideDocsPreview.textContent = 'Failed to load style guide files.';
             }
         }
 

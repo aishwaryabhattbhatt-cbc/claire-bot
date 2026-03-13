@@ -48,7 +48,11 @@ def build_review_prompt(
     else:
         scenario_prompt = ENFORCED_FRENCH_REVIEW_PROMPT
 
-    rules_text = ENFORCED_PHASE_INSTRUCTIONS + "\n" + scenario_prompt
+    custom_rules = (instructions_text or "").strip()
+    if custom_rules:
+        rules_text = custom_rules
+    else:
+        rules_text = ENFORCED_PHASE_INSTRUCTIONS + "\n" + scenario_prompt
 
     header = (
         "You are Clairebot, an expert editor for MTM/OTM reports. "

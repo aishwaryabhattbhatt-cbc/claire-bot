@@ -12,6 +12,7 @@ from app.services.instructions_service import InstructionsService
 from app.services.rule_engine import run_deterministic_checks
 from app.services.reference_service import (
     get_reference_context,
+    get_reference_documents,
     get_reference_glossary_rules,
     get_reference_style_rules,
 )
@@ -141,10 +142,10 @@ async def upload_report(
     llm_status = "skipped"
     llm_error = None
     instruction_payload = instructions_service.get_instructions()
-    if report_language == "French":
-        instructions_text = instruction_payload.get("french_instructions", "")
-    else:
+    if prompt_mode == "comparison":
         instructions_text = instruction_payload.get("english_instructions", "")
+    else:
+        instructions_text = instruction_payload.get("french_instructions", "")
     try:
         llm_findings = review_with_llm(
             parsed_report,
@@ -217,6 +218,21 @@ def update_instructions(payload: InstructionsUpdateRequest) -> InstructionsRespo
         english_instructions=saved.get("english_instructions", ""),
         french_instructions=saved.get("french_instructions", ""),
     )
+
+
+@router.get("/references")
+def get_references() -> dict:
+    """Return reference document inventory for UI visualization."""
+    docs = get_reference_documents()
+    glossary_docs = [d for d in docs if d.get("type") == "glossary"]
+    style_docs = [d for d in docs if d.get("type") == "style_guide"]
+    other_docs = [d for d in docs if d.get("type") == "reference"]
+    return {
+        "documents": docs,
+        "glossary_documents": glossary_docs,
+        "style_guide_documents": style_docs,
+        "other_documents": other_docs,
+    }
 
 
 def _dedupe_findings(findings: list[dict]) -> list[dict]:

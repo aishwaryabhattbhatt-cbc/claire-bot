@@ -18,9 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app/ ./app/
-COPY data/processed/ ./data/processed/
 
-# Create required directories
+# Create required directories (instructions will be generated on first run)
 RUN mkdir -p data/uploads data/processed
 
 # Expose port (Cloud Run uses 8080 by default)

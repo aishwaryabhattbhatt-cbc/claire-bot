@@ -10,6 +10,7 @@ from app.services.llm_service import review_with_llm
 from app.services.sheets_service import GoogleSheetsWriterService
 from app.services.instructions_service import InstructionsService
 from app.services.rule_engine import run_deterministic_checks
+from app.services.reference_service import get_reference_context
 from app.core.config import get_settings
 
 router = APIRouter()
@@ -115,6 +116,7 @@ async def upload_report(
             parsed_report,
             parsed_benchmark,
             instructions_text=instructions_text,
+            reference_context=get_reference_context(),
         )
         findings.extend(llm_findings)
         findings = _dedupe_findings(findings)

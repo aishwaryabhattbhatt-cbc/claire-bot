@@ -207,3 +207,45 @@ class DOCXParser:
         )
 
         return ParsedDocument(metadata=metadata, pages=pages, raw_metadata={})
+
+
+class XLSXParser:
+    """Parser for Excel workbooks — each sheet becomes one page."""
+
+    def parse(self, file_path: str, language: str = "English") -> ParsedDocument:
+        import openpyxl
+
+        file_path = Path(file_path)
+        wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+        pages = []
+
+        for idx, sheet_name in enumerate(wb.sheetnames, start=1):
+            ws = wb[sheet_name]
+            rows_text: List[str] = []
+            for row in ws.iter_rows(values_only=True):
+                cell_values = [str(c) if c is not None else "" for c in row]
+                row_str = "\t".join(cell_values).strip()
+                if row_str:
+                    rows_text.append(row_str)
+
+            text = f"[Sheet: {sheet_name}]\n" + "\n".join(rows_text)
+            pages.append(
+                PageContent(
+                    page_number=idx,
+                    text=text,
+                    has_images=False,
+                    has_tables=True,
+                    images_text=[],
+                )
+            )
+
+        wb.close()
+
+        metadata = DocumentMetadata(
+            filename=file_path.name,
+            file_type="xlsx",
+            total_pages=len(pages),
+            language=language,
+        )
+
+        return ParsedDocument(metadata=metadata, pages=pages, raw_metadata={})

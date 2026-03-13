@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 
 from app.core.config import get_settings
 from app.api import router
+from app.services.reference_service import load_reference_documents
 
 settings = get_settings()
 
@@ -23,6 +24,7 @@ app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 def startup() -> None:
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
     Path(settings.processed_dir).mkdir(parents=True, exist_ok=True)
+    load_reference_documents()
 
 
 @app.get("/")

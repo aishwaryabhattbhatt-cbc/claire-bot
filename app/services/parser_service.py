@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.models import ParsedDocument
-from app.parsers import PDFParser, PPTXParser, DOCXParser
+from app.parsers import PDFParser, PPTXParser, DOCXParser, XLSXParser
 
 
 class DocumentParserService:
@@ -12,6 +12,7 @@ class DocumentParserService:
         self.pdf_parser = PDFParser()
         self.pptx_parser = PPTXParser()
         self.docx_parser = DOCXParser()
+        self.xlsx_parser = XLSXParser()
     
     def parse_document(self, file_path: str, language: str = "French") -> ParsedDocument:
         """
@@ -36,6 +37,8 @@ class DocumentParserService:
             return self.pptx_parser.parse(str(file_path), language)
         elif file_ext in [".docx", ".doc"]:
             return self.docx_parser.parse(str(file_path), language)
+        elif file_ext in [".xlsx", ".xls"]:
+            return self.xlsx_parser.parse(str(file_path), language)
         else:
             raise ValueError(f"Unsupported file type: {file_ext}")
     

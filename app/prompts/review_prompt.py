@@ -7,6 +7,7 @@ def build_review_prompt(
     report: ParsedDocument,
     benchmark: Optional[ParsedDocument] = None,
     instructions_text: Optional[str] = None,
+    reference_context: Optional[str] = None,
 ) -> str:
     """
     Build the prompt for LLM review.
@@ -63,4 +64,11 @@ def build_review_prompt(
                 text_snippet = text_snippet[:2000] + "..."
             benchmark_block.append(f"Page {page.page_number}: {text_snippet}")
 
-    return header + "\n".join(report_block + benchmark_block)
+    reference_block: List[str] = []
+    if reference_context and reference_context.strip():
+        reference_block = [
+            "\n\nReference Standards (use these as the authoritative source of truth when checking terminology, methodology, and benchmarks):",
+            reference_context.strip(),
+        ]
+
+    return header + "\n".join(report_block + benchmark_block + reference_block)

@@ -25,6 +25,9 @@ openai==1.63.2
 google-api-python-client==2.162.0
 google-auth==2.38.0
 
+# Excel parsing
+openpyxl==3.1.5
+
 # Tests
 pytest==8.3.5
 

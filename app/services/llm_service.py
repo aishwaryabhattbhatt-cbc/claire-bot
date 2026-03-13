@@ -20,6 +20,7 @@ def review_with_llm(
     report: ParsedDocument,
     benchmark: Optional[ParsedDocument] = None,
     instructions_text: Optional[str] = None,
+    reference_context: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     service = get_llm_service()
-    return service.review_document(report, benchmark, instructions_text=instructions_text)
+    return service.review_document(report, benchmark, instructions_text=instructions_text, reference_context=reference_context)

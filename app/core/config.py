@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     # Local storage
     upload_dir: str = "./data/uploads"
     processed_dir: str = "./data/processed"
+    reference_dir: str = "./reference"
 
 
 @lru_cache

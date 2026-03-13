@@ -302,6 +302,36 @@
             justify-content: flex-end;
             gap: 8px;
         }
+        .enforced-preview {
+            margin-bottom: 14px;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            background: #f9fafb;
+        }
+        .enforced-preview h4 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #111827;
+        }
+        .enforced-preview p {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .enforced-preview pre {
+            white-space: pre-wrap;
+            font-size: 12px;
+            line-height: 1.45;
+            margin: 0;
+            color: #111827;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 10px;
+            max-height: 220px;
+            overflow: auto;
+        }
         .secondary-btn {
             width: auto;
             padding: 8px 12px;
@@ -319,7 +349,7 @@
 <body>
     <div class="layout">
         <div class="panel container">
-            <button class="instructions-btn" id="instructionsBtn" type="button">See & Edit Instructions</button>
+            <button class="instructions-btn" id="instructionsBtn" type="button">See Instructions</button>
             <h1>Clairebot</h1>
             <p class="subtitle">MTM/OTM Report Review Agent</p>
 
@@ -382,19 +412,27 @@
                 <div class="modal-title">Review Instructions</div>
                 <button class="close-btn" id="closeInstructionsBtn" type="button">Close</button>
             </div>
+            <div class="enforced-preview">
+                <h4>Enforced phase-based framework</h4>
+                <pre id="phaseFrameworkPreview"></pre>
+            </div>
+            <div class="enforced-preview">
+                <h4>Scenario-based enforced prompt</h4>
+                <p id="activeScenarioLabel">Active scenario: -</p>
+                <pre id="scenarioPromptPreview"></pre>
+            </div>
             <div class="instructions-grid">
                 <div class="instructions-column">
-                    <label for="englishInstructionsTextarea">English Instructions</label>
-                    <textarea class="instructions-textarea" id="englishInstructionsTextarea" placeholder="Loading English instructions..."></textarea>
+                    <label for="englishInstructionsTextarea">English Additional Guidance (read-only)</label>
+                    <textarea class="instructions-textarea" id="englishInstructionsTextarea" placeholder="Loading English instructions..." readonly></textarea>
                 </div>
                 <div class="instructions-column">
-                    <label for="frenchInstructionsTextarea">French Instructions</label>
-                    <textarea class="instructions-textarea" id="frenchInstructionsTextarea" placeholder="Loading French instructions..."></textarea>
+                    <label for="frenchInstructionsTextarea">French Additional Guidance (read-only)</label>
+                    <textarea class="instructions-textarea" id="frenchInstructionsTextarea" placeholder="Loading French instructions..." readonly></textarea>
                 </div>
             </div>
             <div class="modal-actions">
                 <button class="secondary-btn" id="reloadInstructionsBtn" type="button">Reload</button>
-                <button id="saveInstructionsBtn" type="button">Save Instructions</button>
             </div>
         </div>
     </div>
@@ -410,19 +448,44 @@
         const instructionsBtn = document.getElementById('instructionsBtn');
         const instructionsModal = document.getElementById('instructionsModal');
         const closeInstructionsBtn = document.getElementById('closeInstructionsBtn');
-        const saveInstructionsBtn = document.getElementById('saveInstructionsBtn');
         const reloadInstructionsBtn = document.getElementById('reloadInstructionsBtn');
         const englishInstructionsTextarea = document.getElementById('englishInstructionsTextarea');
         const frenchInstructionsTextarea = document.getElementById('frenchInstructionsTextarea');
         const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+        const phaseFrameworkPreview = document.getElementById('phaseFrameworkPreview');
+        const scenarioPromptPreview = document.getElementById('scenarioPromptPreview');
+        const activeScenarioLabel = document.getElementById('activeScenarioLabel');
         let latestFindings = [];
+
+        const ENFORCED_PHASE_FRAMEWORK = `Instructions:
+    Phase 1: Role & Core Function
+    -Role/Task/Output Format
+    Phase 2: Linguistic & Stylistic Rules (Radio-Canada/MTM Standards)
+    -Glossary/Language Purity/Age References/Casing/Footnotes/Text preferences
+    Phase 3: The Comparison Rules
+    -Benchmark/Data Matching/Target Sample/Translation Alignment/Review of the English report
+    Phase 4: Visual & Technical Verification
+    -Logos/Consistency/Summary/Graphics/Navigation (TOC)/Methodology/Date`;
+
+        const ENFORCED_COMPARISON_PROMPT = `Comparison prompt: You’re a master editor of MTM/OTM reports. To complete your task, you will compare the following reports. Follow every step listed in your instructions (Phase 1, Phase 2, Phase 3, Phase 4, Phase 5), perform a strict language purity double-check with an emphasis on the French report, make sure that numbers match, formatting is aligned and logos are accurate. Flag issues that you find both in the French and English reports. Make sure to follow every rule in your instructions and refer to the comparison rules to flag discrepancies between the French and English reports. Double check every step before providing your feedback.`;
+
+        const ENFORCED_FRENCH_REVIEW_PROMPT = `French Review Prompt: You’re a master editor of OTM reports. To complete your task, you will review the following report. Follow every step listed in Phase 1, Phase 2, Phase 3 and Phase 5 of your instructions (exclude Phase 4), perform a strict language purity double-check, make sure that numbers match the text, formatting is aligned and logos are accurate. Double check every step before providing your feedback.`;
+
+        const ENFORCED_ENGLISH_REVIEW_PROMPT = `English Review Prompt: You’re a master editor of MTM/OTM reports. To complete your task, you will review the following report. Follow every step listed in Phase 1, Phase 2, Phase 3 and Phase 4 of your instructions, validate data and terminology consistency, ensure formatting alignment, and double check every step before providing your feedback.`;
 
         comparisonCheckbox.addEventListener('change', (e) => {
             benchmarkGroup.style.display = e.target.checked ? 'block' : 'none';
+            updateScenarioPromptPreview();
+        });
+
+        document.querySelectorAll('input[name="language"]').forEach((radio) => {
+            radio.addEventListener('change', () => updateScenarioPromptPreview());
         });
 
         instructionsBtn.addEventListener('click', async () => {
             instructionsModal.style.display = 'flex';
+            phaseFrameworkPreview.textContent = ENFORCED_PHASE_FRAMEWORK;
+            updateScenarioPromptPreview();
             await loadInstructions();
         });
 
@@ -432,11 +495,8 @@
 
         reloadInstructionsBtn.addEventListener('click', async () => {
             await loadInstructions();
+            updateScenarioPromptPreview();
             addStatus('Instructions reloaded.');
-        });
-
-        saveInstructionsBtn.addEventListener('click', async () => {
-            await saveInstructions();
         });
 
         downloadCsvBtn.addEventListener('click', () => {
@@ -587,28 +647,24 @@
             }
         }
 
-        async function saveInstructions() {
-            const english_instructions = englishInstructionsTextarea.value || '';
-            const french_instructions = frenchInstructionsTextarea.value || '';
-            try {
-                const response = await fetch('/instructions', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ english_instructions, french_instructions })
-                });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.detail || 'Failed to save instructions');
-                }
-                englishInstructionsTextarea.value = data.english_instructions || '';
-                frenchInstructionsTextarea.value = data.french_instructions || '';
-                addStatus('Instructions saved successfully.');
-                instructionsModal.style.display = 'none';
-            } catch (error) {
-                addStatus('Failed to save instructions.');
+        function updateScenarioPromptPreview() {
+            const comparisonMode = comparisonCheckbox.checked;
+            const language = document.querySelector('input[name="language"]:checked')?.value;
+
+            if (comparisonMode) {
+                activeScenarioLabel.textContent = 'Active scenario: Comparison mode';
+                scenarioPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
+                return;
             }
+
+            if (language === 'French') {
+                activeScenarioLabel.textContent = 'Active scenario: French review';
+                scenarioPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
+                return;
+            }
+
+            activeScenarioLabel.textContent = 'Active scenario: English review';
+            scenarioPromptPreview.textContent = ENFORCED_ENGLISH_REVIEW_PROMPT;
         }
 
         function downloadFindingsCsv() {

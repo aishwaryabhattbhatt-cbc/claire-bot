@@ -19,6 +19,7 @@ _SUPPORTED_EXTENSIONS = {".pdf", ".pptx", ".docx", ".doc", ".xlsx", ".xls"}
 # Module-level cache — loaded once at startup, never reloaded
 _reference_context: Optional[str] = None
 _reference_glossary_rules: List[Dict[str, str]] = []
+_reference_style_rules: List[Dict[str, str]] = []
 _loaded: bool = False
 
 
@@ -27,7 +28,7 @@ def load_reference_documents() -> None:
     Parse all documents in the reference directory and cache their text.
     Call once during application startup.
     """
-    global _reference_context, _reference_glossary_rules, _loaded
+    global _reference_context, _reference_glossary_rules, _reference_style_rules, _loaded
     if _loaded:
         return
 
@@ -38,6 +39,7 @@ def load_reference_documents() -> None:
         logger.info("Reference directory '%s' not found — skipping reference loading.", ref_dir)
         _reference_context = None
         _reference_glossary_rules = []
+        _reference_style_rules = []
         _loaded = True
         return
 
@@ -56,10 +58,12 @@ def load_reference_documents() -> None:
         logger.info("No supported documents found in reference directory '%s'.", ref_dir)
         _reference_context = None
         _reference_glossary_rules = []
+        _reference_style_rules = []
         _loaded = True
         return
 
     glossary_rules: List[Dict[str, str]] = []
+    style_rules: List[Dict[str, str]] = []
     for path in files:
         try:
             parsed = parser.parse_document(path, language="English")
@@ -80,6 +84,8 @@ def load_reference_documents() -> None:
 
             if path.suffix.lower() in {".xlsx", ".xls"}:
                 glossary_rules.extend(_extract_glossary_rules_from_xlsx(path))
+            if _looks_like_style_guide(path.name):
+                style_rules.extend(_extract_style_rules_from_text(path.name, "\n".join(doc_text_parts)))
         except Exception as exc:
             logger.warning("Could not parse reference document '%s': %s", path.name, exc)
 
@@ -93,6 +99,10 @@ def load_reference_documents() -> None:
     _reference_glossary_rules = _dedupe_rules(glossary_rules)
     if _reference_glossary_rules:
         logger.info("Reference glossary rules loaded: %d", len(_reference_glossary_rules))
+
+    _reference_style_rules = _dedupe_style_rules(style_rules)
+    if _reference_style_rules:
+        logger.info("Reference style rules loaded: %d", len(_reference_style_rules))
 
     _loaded = True
 
@@ -109,6 +119,13 @@ def get_reference_glossary_rules() -> List[Dict[str, str]]:
     if not _loaded:
         load_reference_documents()
     return list(_reference_glossary_rules)
+
+
+def get_reference_style_rules() -> List[Dict[str, str]]:
+    """Return parsed style guide rules extracted from reference style documents."""
+    if not _loaded:
+        load_reference_documents()
+    return list(_reference_style_rules)
 
 
 def _extract_glossary_rules_from_xlsx(path: Path) -> List[Dict[str, str]]:
@@ -227,6 +244,115 @@ def _dedupe_rules(rules: List[Dict[str, str]]) -> List[Dict[str, str]]:
     result: List[Dict[str, str]] = []
     for rule in rules:
         key = (
+            (rule.get("source") or "").strip().lower(),
+            (rule.get("target") or "").strip().lower(),
+            (rule.get("language") or "Any").strip(),
+        )
+        if not key[0] or not key[1] or key in seen:
+            continue
+        seen.add(key)
+        result.append(rule)
+    return result
+
+
+def _looks_like_style_guide(filename: str) -> bool:
+    lower = filename.lower()
+    return "style guide" in lower or "guide de style" in lower
+
+
+def _extract_style_rules_from_text(filename: str, text: str) -> List[Dict[str, str]]:
+    """
+    Extract deterministic style rules from English/French style guide text.
+
+    Rule shapes:
+    - {type: 'forbidden', source, language, origin}
+    - {type: 'replacement', source, target, language, origin}
+    """
+    rules: List[Dict[str, str]] = []
+    cleaned = " ".join((text or "").split())
+    if not cleaned:
+        return rules
+
+    language = _infer_language_from_filename(filename)
+    lower = cleaned.lower()
+
+    # Pattern: "Avoid British spellings (a, b, c)"
+    avoid_match = re.search(r"avoid\s+british\s+spellings\s*\(([^)]+)\)", lower, flags=re.IGNORECASE)
+    if avoid_match:
+        items = [it.strip(" .;:") for it in avoid_match.group(1).split(",")]
+        for item in items:
+            if item and item.lower() not in {"etc"} and len(item) >= 4:
+                rules.append(
+                    {
+                        "type": "forbidden",
+                        "source": item,
+                        "language": "English",
+                        "origin": filename,
+                    }
+                )
+
+    # Pattern: "X is no longer used. It has been replaced by: Y"
+    for m in re.finditer(
+        r"[“\"']?([^\"”'\.]{2,80})[”\"']?\s+is\s+no\s+longer\s+used\.\s*(?:it\s+has\s+been\s+replaced\s+by:|use)\s+([^\.]{2,120})",
+        cleaned,
+        flags=re.IGNORECASE,
+    ):
+        source = m.group(1).strip(" .;:\"'“”")
+        target = m.group(2).strip(" .;:\"'“”")
+        if (
+            source
+            and target
+            and source.lower() != target.lower()
+            and len(source) <= 40
+            and len(target) <= 80
+            and "no longer used" not in target.lower()
+            and "table below" not in source.lower()
+        ):
+            rules.append(
+                {
+                    "type": "replacement",
+                    "source": source,
+                    "target": target,
+                    "language": language,
+                    "origin": filename,
+                }
+            )
+
+    # French variant: "X n'est plus utilisé ... utiliser Y"
+    for m in re.finditer(
+        r"[«\"']?([^\"»'\.]{2,80})[»\"']?\s+n['’]est\s+plus\s+utilis[ée]\.?(?:\s*il\s+est\s+remplac[ée]\s+par\s*:?|\s*utiliser\s+)([^\.]{2,120})",
+        cleaned,
+        flags=re.IGNORECASE,
+    ):
+        source = m.group(1).strip(" .;:\"'«»")
+        target = m.group(2).strip(" .;:\"'«»")
+        if (
+            source
+            and target
+            and source.lower() != target.lower()
+            and len(source) <= 40
+            and len(target) <= 80
+            and "n'est plus utilisé" not in target.lower()
+        ):
+            rules.append(
+                {
+                    "type": "replacement",
+                    "source": source,
+                    "target": target,
+                    "language": "French",
+                    "origin": filename,
+                }
+            )
+
+    return rules
+
+
+def _dedupe_style_rules(rules: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    seen = set()
+    result: List[Dict[str, str]] = []
+    for rule in rules:
+        key = (
+            (rule.get("type") or "").strip().lower(),
             (rule.get("source") or "").strip().lower(),
             (rule.get("target") or "").strip().lower(),
             (rule.get("language") or "Any").strip(),

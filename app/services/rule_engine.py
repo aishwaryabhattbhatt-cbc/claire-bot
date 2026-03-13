@@ -9,6 +9,7 @@ def run_deterministic_checks(
     report: ParsedDocument,
     benchmark: Optional[ParsedDocument] = None,
     glossary_rules: Optional[List[Dict[str, str]]] = None,
+    style_rules: Optional[List[Dict[str, str]]] = None,
 ) -> List[Dict[str, Any]]:
     findings: List[Dict[str, Any]] = []
 
@@ -25,6 +26,9 @@ def run_deterministic_checks(
 
     if glossary_rules:
         findings.extend(_check_reference_glossary(report, glossary_rules))
+
+    if style_rules:
+        findings.extend(_check_reference_style_rules(report, style_rules))
 
     return findings
 
@@ -282,6 +286,67 @@ def _check_reference_glossary(
                     )
                 )
                 page_hits += 1
+
+            if page_hits >= 8:
+                break
+
+    return findings
+
+
+def _check_reference_style_rules(
+    report: ParsedDocument, style_rules: List[Dict[str, str]]
+) -> List[Dict[str, Any]]:
+    """Apply deterministic style-guide rules (forbidden/replacement) extracted from style docs."""
+    findings: List[Dict[str, Any]] = []
+    lang = report.metadata.language
+    report_lang = (lang or "").strip().lower()
+
+    for page in report.pages:
+        text = page.text or ""
+        if not text.strip():
+            continue
+
+        page_hits = 0
+        for rule in style_rules:
+            rule_type = (rule.get("type") or "").strip().lower()
+            source = (rule.get("source") or "").strip()
+            target = (rule.get("target") or "").strip()
+            rule_lang = (rule.get("language") or "Any").strip().lower()
+            origin = (rule.get("origin") or "style guide").strip()
+
+            if not source:
+                continue
+            if rule_lang == "french" and report_lang != "french":
+                continue
+            if rule_lang == "english" and report_lang != "english":
+                continue
+
+            source_pattern = re.compile(rf"\b{re.escape(source)}\b", flags=re.IGNORECASE)
+            if not source_pattern.search(text):
+                continue
+
+            if rule_type == "forbidden":
+                findings.append(
+                    _issue(
+                        page.page_number,
+                        lang,
+                        f"Style guide violation: forbidden term '{source}' found ({origin}).",
+                        "Replace with approved Canadian/CBC style equivalent.",
+                    )
+                )
+                page_hits += 1
+            elif rule_type == "replacement" and target:
+                target_pattern = re.compile(rf"\b{re.escape(target)}\b", flags=re.IGNORECASE)
+                if not target_pattern.search(text):
+                    findings.append(
+                        _issue(
+                            page.page_number,
+                            lang,
+                            f"Style guide replacement required: '{source}' should be '{target}' ({origin}).",
+                            f"Replace '{source}' with '{target}'.",
+                        )
+                    )
+                    page_hits += 1
 
             if page_hits >= 8:
                 break

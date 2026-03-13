@@ -10,7 +10,11 @@ from app.services.llm_service import review_with_llm
 from app.services.sheets_service import GoogleSheetsWriterService
 from app.services.instructions_service import InstructionsService
 from app.services.rule_engine import run_deterministic_checks
-from app.services.reference_service import get_reference_context, get_reference_glossary_rules
+from app.services.reference_service import (
+    get_reference_context,
+    get_reference_glossary_rules,
+    get_reference_style_rules,
+)
 from app.core.config import get_settings
 
 router = APIRouter()
@@ -104,6 +108,7 @@ async def upload_report(
         parsed_report,
         parsed_benchmark,
         glossary_rules=get_reference_glossary_rules(),
+        style_rules=get_reference_style_rules(),
     )
 
     # Run LLM review (Gemini or OpenAI based on config)

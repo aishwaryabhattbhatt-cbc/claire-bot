@@ -418,7 +418,6 @@
             </div>
             <div class="enforced-preview">
                 <h4>Scenario-based enforced prompt</h4>
-                <p id="activeScenarioLabel">Active scenario: -</p>
                 <pre id="scenarioPromptPreview"></pre>
             </div>
             <div class="enforced-preview">
@@ -445,7 +444,6 @@
         const downloadCsvBtn = document.getElementById('downloadCsvBtn');
         const phaseFrameworkPreview = document.getElementById('phaseFrameworkPreview');
         const scenarioPromptPreview = document.getElementById('scenarioPromptPreview');
-        const activeScenarioLabel = document.getElementById('activeScenarioLabel');
         const comparisonPromptPreview = document.getElementById('comparisonPromptPreview');
         const frenchPromptPreview = document.getElementById('frenchPromptPreview');
         let latestFindings = [];
@@ -626,12 +624,10 @@
             const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'french_review';
 
             if (promptMode === 'comparison') {
-                activeScenarioLabel.textContent = 'Active scenario: Comparison prompt (forced by toggle)';
                 scenarioPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
                 return;
             }
 
-            activeScenarioLabel.textContent = 'Active scenario: French review prompt (forced by toggle)';
             scenarioPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
         }
 

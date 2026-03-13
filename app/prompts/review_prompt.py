@@ -23,10 +23,6 @@ ENFORCED_FRENCH_REVIEW_PROMPT = """French Review Prompt: You’re a master edito
 """
 
 
-ENFORCED_ENGLISH_REVIEW_PROMPT = """English Review Prompt: You’re a master editor of MTM/OTM reports. To complete your task, you will review the following report. Follow every step listed in Phase 1, Phase 2, Phase 3 and Phase 4 of your instructions, validate data and terminology consistency, ensure formatting alignment, and double check every step before providing your feedback.
-"""
-
-
 def build_review_prompt(
     report: ParsedDocument,
     benchmark: Optional[ParsedDocument] = None,
@@ -46,17 +42,10 @@ def build_review_prompt(
     comparison_mode = benchmark is not None
 
     scenario_prompt = ENFORCED_COMPARISON_PROMPT
-    if not comparison_mode:
-        if report.metadata.language.lower() == "french":
-            scenario_prompt = ENFORCED_FRENCH_REVIEW_PROMPT
-        else:
-            scenario_prompt = ENFORCED_ENGLISH_REVIEW_PROMPT
+    if not comparison_mode and report.metadata.language.lower() == "french":
+        scenario_prompt = ENFORCED_FRENCH_REVIEW_PROMPT
 
     rules_text = ENFORCED_PHASE_INSTRUCTIONS + "\n" + scenario_prompt
-
-    custom_rules = (instructions_text or "").strip()
-    if custom_rules:
-        rules_text += "\nAdditional project-specific guidance:\n" + custom_rules
 
     header = (
         "You are Clairebot, an expert editor for MTM/OTM reports. "

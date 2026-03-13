@@ -421,19 +421,6 @@
                 <p id="activeScenarioLabel">Active scenario: -</p>
                 <pre id="scenarioPromptPreview"></pre>
             </div>
-            <div class="instructions-grid">
-                <div class="instructions-column">
-                    <label for="englishInstructionsTextarea">English Additional Guidance (read-only)</label>
-                    <textarea class="instructions-textarea" id="englishInstructionsTextarea" placeholder="Loading English instructions..." readonly></textarea>
-                </div>
-                <div class="instructions-column">
-                    <label for="frenchInstructionsTextarea">French Additional Guidance (read-only)</label>
-                    <textarea class="instructions-textarea" id="frenchInstructionsTextarea" placeholder="Loading French instructions..." readonly></textarea>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="secondary-btn" id="reloadInstructionsBtn" type="button">Reload</button>
-            </div>
         </div>
     </div>
 
@@ -448,9 +435,6 @@
         const instructionsBtn = document.getElementById('instructionsBtn');
         const instructionsModal = document.getElementById('instructionsModal');
         const closeInstructionsBtn = document.getElementById('closeInstructionsBtn');
-        const reloadInstructionsBtn = document.getElementById('reloadInstructionsBtn');
-        const englishInstructionsTextarea = document.getElementById('englishInstructionsTextarea');
-        const frenchInstructionsTextarea = document.getElementById('frenchInstructionsTextarea');
         const downloadCsvBtn = document.getElementById('downloadCsvBtn');
         const phaseFrameworkPreview = document.getElementById('phaseFrameworkPreview');
         const scenarioPromptPreview = document.getElementById('scenarioPromptPreview');
@@ -471,8 +455,6 @@
 
         const ENFORCED_FRENCH_REVIEW_PROMPT = `French Review Prompt: You’re a master editor of OTM reports. To complete your task, you will review the following report. Follow every step listed in Phase 1, Phase 2, Phase 3 and Phase 5 of your instructions (exclude Phase 4), perform a strict language purity double-check, make sure that numbers match the text, formatting is aligned and logos are accurate. Double check every step before providing your feedback.`;
 
-        const ENFORCED_ENGLISH_REVIEW_PROMPT = `English Review Prompt: You’re a master editor of MTM/OTM reports. To complete your task, you will review the following report. Follow every step listed in Phase 1, Phase 2, Phase 3 and Phase 4 of your instructions, validate data and terminology consistency, ensure formatting alignment, and double check every step before providing your feedback.`;
-
         comparisonCheckbox.addEventListener('change', (e) => {
             benchmarkGroup.style.display = e.target.checked ? 'block' : 'none';
             updateScenarioPromptPreview();
@@ -486,17 +468,10 @@
             instructionsModal.style.display = 'flex';
             phaseFrameworkPreview.textContent = ENFORCED_PHASE_FRAMEWORK;
             updateScenarioPromptPreview();
-            await loadInstructions();
         });
 
         closeInstructionsBtn.addEventListener('click', () => {
             instructionsModal.style.display = 'none';
-        });
-
-        reloadInstructionsBtn.addEventListener('click', async () => {
-            await loadInstructions();
-            updateScenarioPromptPreview();
-            addStatus('Instructions reloaded.');
         });
 
         downloadCsvBtn.addEventListener('click', () => {
@@ -629,24 +604,6 @@
             }
         }
 
-        async function loadInstructions() {
-            englishInstructionsTextarea.value = 'Loading...';
-            frenchInstructionsTextarea.value = 'Loading...';
-            try {
-                const response = await fetch('/instructions');
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.detail || 'Failed to load instructions');
-                }
-                englishInstructionsTextarea.value = data.english_instructions || '';
-                frenchInstructionsTextarea.value = data.french_instructions || '';
-            } catch (error) {
-                englishInstructionsTextarea.value = '';
-                frenchInstructionsTextarea.value = '';
-                addStatus('Failed to load instructions.');
-            }
-        }
-
         function updateScenarioPromptPreview() {
             const comparisonMode = comparisonCheckbox.checked;
             const language = document.querySelector('input[name="language"]:checked')?.value;
@@ -663,8 +620,8 @@
                 return;
             }
 
-            activeScenarioLabel.textContent = 'Active scenario: English review';
-            scenarioPromptPreview.textContent = ENFORCED_ENGLISH_REVIEW_PROMPT;
+            activeScenarioLabel.textContent = 'Active scenario: Comparison prompt (default)';
+            scenarioPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
         }
 
         function downloadFindingsCsv() {

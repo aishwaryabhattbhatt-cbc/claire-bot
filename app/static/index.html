@@ -376,6 +376,18 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>Prompt Mode</label>
+                    <div class="toggle-group">
+                        <input class="toggle-input" type="radio" id="promptAuto" name="promptMode" value="auto" checked>
+                        <label class="toggle-label" for="promptAuto">Auto</label>
+                        <input class="toggle-input" type="radio" id="promptComparison" name="promptMode" value="comparison">
+                        <label class="toggle-label" for="promptComparison">Comparison</label>
+                        <input class="toggle-input" type="radio" id="promptFrenchReview" name="promptMode" value="french_review">
+                        <label class="toggle-label" for="promptFrenchReview">French Review</label>
+                    </div>
+                </div>
+
                 <div class="form-group" id="benchmarkGroup">
                     <label for="benchmarkFile">Benchmark File (optional)</label>
                     <input type="file" id="benchmarkFile" accept=".pdf,.pptx,.docx,.doc">
@@ -463,6 +475,9 @@
         document.querySelectorAll('input[name="language"]').forEach((radio) => {
             radio.addEventListener('change', () => updateScenarioPromptPreview());
         });
+        document.querySelectorAll('input[name="promptMode"]').forEach((radio) => {
+            radio.addEventListener('change', () => updateScenarioPromptPreview());
+        });
 
         instructionsBtn.addEventListener('click', async () => {
             instructionsModal.style.display = 'flex';
@@ -484,6 +499,7 @@
             const reportFile = document.getElementById('reportFile').files[0];
             const language = document.querySelector('input[name="language"]:checked')?.value;
             const comparisonMode = comparisonCheckbox.checked;
+            const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'auto';
             const benchmarkFile = document.getElementById('benchmarkFile').files[0];
 
             if (!reportFile) {
@@ -501,10 +517,21 @@
                 return;
             }
 
+            if (promptMode === 'comparison' && !comparisonMode) {
+                showResult('error', 'Error', 'Comparison prompt requires benchmark comparison mode to be enabled');
+                return;
+            }
+
+            if (promptMode === 'french_review' && language !== 'French') {
+                showResult('error', 'Error', 'French Review prompt can only be used with French language reports');
+                return;
+            }
+
             const formData = new FormData();
             formData.append('file', reportFile);
             formData.append('report_language', language);
             formData.append('comparison_mode', comparisonMode);
+            formData.append('prompt_mode', promptMode);
             if (benchmarkFile) {
                 formData.append('benchmark_file', benchmarkFile);
             }
@@ -607,15 +634,28 @@
         function updateScenarioPromptPreview() {
             const comparisonMode = comparisonCheckbox.checked;
             const language = document.querySelector('input[name="language"]:checked')?.value;
+            const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'auto';
+
+            if (promptMode === 'comparison') {
+                activeScenarioLabel.textContent = 'Active scenario: Comparison prompt (forced by toggle)';
+                scenarioPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
+                return;
+            }
+
+            if (promptMode === 'french_review') {
+                activeScenarioLabel.textContent = 'Active scenario: French review prompt (forced by toggle)';
+                scenarioPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
+                return;
+            }
 
             if (comparisonMode) {
-                activeScenarioLabel.textContent = 'Active scenario: Comparison mode';
+                activeScenarioLabel.textContent = 'Active scenario: Comparison mode (auto)';
                 scenarioPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
                 return;
             }
 
             if (language === 'French') {
-                activeScenarioLabel.textContent = 'Active scenario: French review';
+                activeScenarioLabel.textContent = 'Active scenario: French review (auto)';
                 scenarioPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
                 return;
             }

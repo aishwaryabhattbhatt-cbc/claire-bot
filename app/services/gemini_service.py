@@ -25,6 +25,7 @@ class GeminiReviewService:
         benchmark: Optional[ParsedDocument] = None,
         instructions_text: Optional[str] = None,
         reference_context: Optional[str] = None,
+        prompt_mode: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Review document using Gemini and return list of issues.
@@ -32,7 +33,13 @@ class GeminiReviewService:
         Returns:
             List of issue dictionaries
         """
-        prompt = build_review_prompt(report, benchmark, instructions_text=instructions_text, reference_context=reference_context)
+        prompt = build_review_prompt(
+            report,
+            benchmark,
+            instructions_text=instructions_text,
+            reference_context=reference_context,
+            prompt_mode=prompt_mode,
+        )
         response = self.model.generate_content(prompt)
 
         try:

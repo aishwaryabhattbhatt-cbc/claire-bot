@@ -30,6 +30,7 @@ async def upload_report(
     file: UploadFile = File(...),
     report_language: str = Form(...),
     comparison_mode: bool = Form(False),
+    prompt_mode: str = Form("auto"),
     benchmark_file: Optional[UploadFile] = File(None),
 ) -> FileUploadResponse:
     """
@@ -58,6 +59,25 @@ async def upload_report(
     # Validate language
     if report_language not in ["French", "English"]:
         raise HTTPException(status_code=400, detail="Language must be 'French' or 'English'")
+
+    allowed_prompt_modes = {"auto", "comparison", "french_review"}
+    if prompt_mode not in allowed_prompt_modes:
+        raise HTTPException(
+            status_code=400,
+            detail="prompt_mode must be one of: auto, comparison, french_review",
+        )
+
+    if prompt_mode == "comparison" and not comparison_mode:
+        raise HTTPException(
+            status_code=400,
+            detail="comparison prompt requires comparison_mode=true",
+        )
+
+    if prompt_mode == "french_review" and report_language != "French":
+        raise HTTPException(
+            status_code=400,
+            detail="french_review prompt requires report_language='French'",
+        )
 
     # Generate job ID
     job_id = generate_job_id()
@@ -126,6 +146,7 @@ async def upload_report(
             parsed_benchmark,
             instructions_text=instructions_text,
             reference_context=get_reference_context(),
+            prompt_mode=prompt_mode,
         )
         findings.extend(llm_findings)
         findings = _dedupe_findings(findings)

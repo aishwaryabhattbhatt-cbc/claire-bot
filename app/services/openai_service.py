@@ -25,8 +25,15 @@ class OpenAIReviewService:
         benchmark: Optional[ParsedDocument] = None,
         instructions_text: Optional[str] = None,
         reference_context: Optional[str] = None,
+        prompt_mode: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        prompt = build_review_prompt(report, benchmark, instructions_text=instructions_text, reference_context=reference_context)
+        prompt = build_review_prompt(
+            report,
+            benchmark,
+            instructions_text=instructions_text,
+            reference_context=reference_context,
+            prompt_mode=prompt_mode,
+        )
 
         response = self.client.responses.create(
             model=self.model,

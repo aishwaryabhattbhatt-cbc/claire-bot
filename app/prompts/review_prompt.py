@@ -28,6 +28,7 @@ def build_review_prompt(
     benchmark: Optional[ParsedDocument] = None,
     instructions_text: Optional[str] = None,
     reference_context: Optional[str] = None,
+    prompt_mode: Optional[str] = None,
 ) -> str:
     """
     Build the prompt for LLM review.
@@ -41,9 +42,15 @@ def build_review_prompt(
     """
     comparison_mode = benchmark is not None
 
-    scenario_prompt = ENFORCED_COMPARISON_PROMPT
-    if not comparison_mode and report.metadata.language.lower() == "french":
+    mode = (prompt_mode or "auto").strip().lower()
+    if mode == "comparison":
+        scenario_prompt = ENFORCED_COMPARISON_PROMPT
+    elif mode == "french_review":
         scenario_prompt = ENFORCED_FRENCH_REVIEW_PROMPT
+    else:
+        scenario_prompt = ENFORCED_COMPARISON_PROMPT
+        if not comparison_mode and report.metadata.language.lower() == "french":
+            scenario_prompt = ENFORCED_FRENCH_REVIEW_PROMPT
 
     rules_text = ENFORCED_PHASE_INSTRUCTIONS + "\n" + scenario_prompt
 

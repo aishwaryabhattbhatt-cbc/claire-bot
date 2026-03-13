@@ -35,7 +35,19 @@ class GeminiReviewService:
         response = self.model.generate_content(prompt)
 
         try:
-            parsed = json.loads(response.text)
+            text = response.text.strip()
+            # Strip markdown code fences that Gemini often adds
+            if text.startswith("```"):
+                text = text.split("```", 2)[1]
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.rsplit("```", 1)[0].strip()
+
+            parsed = json.loads(text)
+            # Handle {"findings": [...]} wrapper (standard shape)
+            if isinstance(parsed, dict) and "findings" in parsed:
+                return parsed["findings"]
+            # Handle bare list (legacy shape)
             if isinstance(parsed, list):
                 return parsed
         except Exception:

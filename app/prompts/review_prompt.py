@@ -3,6 +3,30 @@ from typing import List, Optional
 from app.models import ParsedDocument
 
 
+ENFORCED_PHASE_INSTRUCTIONS = """Instructions:
+Phase 1: Role & Core Function
+-Role/Task/Output Format
+Phase 2: Linguistic & Stylistic Rules (Radio-Canada/MTM Standards)
+-Glossary/Language Purity/Age References/Casing/Footnotes/Text preferences
+Phase 3: The Comparison Rules
+-Benchmark/Data Matching/Target Sample/Translation Alignment/Review of the English report
+Phase 4: Visual & Technical Verification
+-Logos/Consistency/Summary/Graphics/Navigation (TOC)/Methodology/Date
+"""
+
+
+ENFORCED_COMPARISON_PROMPT = """Comparison prompt: You’re a master editor of MTM/OTM reports. To complete your task, you will compare the following reports. Follow every step listed in your instructions (Phase 1, Phase 2, Phase 3, Phase 4, Phase 5), perform a strict language purity double-check with an emphasis on the French report, make sure that numbers match, formatting is aligned and logos are accurate. Flag issues that you find both in the French and English reports. Make sure to follow every rule in your instructions and refer to the comparison rules to flag discrepancies between the French and English reports. Double check every step before providing your feedback.
+"""
+
+
+ENFORCED_FRENCH_REVIEW_PROMPT = """French Review Prompt: You’re a master editor of OTM reports. To complete your task, you will review the following report. Follow every step listed in Phase 1, Phase 2, Phase 3 and Phase 5 of your instructions (exclude Phase 4), perform a strict language purity double-check, make sure that numbers match the text, formatting is aligned and logos are accurate. Double check every step before providing your feedback.
+"""
+
+
+ENFORCED_ENGLISH_REVIEW_PROMPT = """English Review Prompt: You’re a master editor of MTM/OTM reports. To complete your task, you will review the following report. Follow every step listed in Phase 1, Phase 2, Phase 3 and Phase 4 of your instructions, validate data and terminology consistency, ensure formatting alignment, and double check every step before providing your feedback.
+"""
+
+
 def build_review_prompt(
     report: ParsedDocument,
     benchmark: Optional[ParsedDocument] = None,
@@ -21,14 +45,18 @@ def build_review_prompt(
     """
     comparison_mode = benchmark is not None
 
-    rules_text = (instructions_text or "").strip()
-    if not rules_text:
-        rules_text = (
-            "Role: You are Clairebot, an expert editor for MTM/OTM reports.\n"
-            "Task: Review French and English reports and compare FR against EN benchmark when provided.\n"
-            "Rules: enforce French purity, terminology consistency, age labels with 'ans', footnote integrity, "
-            "methodology sample consistency, summary/data alignment, and benchmark alignment.\n"
-        )
+    scenario_prompt = ENFORCED_COMPARISON_PROMPT
+    if not comparison_mode:
+        if report.metadata.language.lower() == "french":
+            scenario_prompt = ENFORCED_FRENCH_REVIEW_PROMPT
+        else:
+            scenario_prompt = ENFORCED_ENGLISH_REVIEW_PROMPT
+
+    rules_text = ENFORCED_PHASE_INSTRUCTIONS + "\n" + scenario_prompt
+
+    custom_rules = (instructions_text or "").strip()
+    if custom_rules:
+        rules_text += "\nAdditional project-specific guidance:\n" + custom_rules
 
     header = (
         "You are Clairebot, an expert editor for MTM/OTM reports. "

@@ -540,12 +540,16 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    addStatus('Parsing document (PDF parser)...');
-                    if (comparisonMode) {
-                        addStatus('Parsing benchmark document...');
+                    if (Array.isArray(data.phase_updates) && data.phase_updates.length > 0) {
+                        data.phase_updates.forEach((msg) => addStatus(msg));
+                    } else {
+                        addStatus('Parsing document (PDF parser)...');
+                        if (comparisonMode) {
+                            addStatus('Parsing benchmark document...');
+                        }
+                        addStatus('Running LLM review...');
+                        addStatus('Generating response...');
                     }
-                    addStatus('Running LLM review...');
-                    addStatus('Generating response...');
                     addStatus(`Job ID: ${data.job_id}`);
                     if (data.llm_status === 'failed') {
                         addStatus(`Review failed: ${data.llm_error || 'Unknown LLM error'}`);

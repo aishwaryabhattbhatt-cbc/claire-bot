@@ -25,6 +25,10 @@ class FileUploadResponse(BaseModel):
     sheets_error: Optional[str] = Field(default=None, description="Sheets write error message if failed")
     llm_status: Optional[str] = Field(default=None, description="LLM execution status: success|failed|skipped")
     llm_error: Optional[str] = Field(default=None, description="LLM error message if failed")
+    phase_updates: Optional[list[str]] = Field(
+        default=None,
+        description="Backend phase-by-phase status updates",
+    )
 
 
 class HealthResponse(BaseModel):

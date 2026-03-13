@@ -81,6 +81,8 @@ async def upload_report(
 
     # Generate job ID
     job_id = generate_job_id()
+    phase_updates: list[str] = []
+    phase_updates.append("Phase 1 completed: request validated and report received.")
 
     # Save report file
     report_content = await file.read()
@@ -93,6 +95,7 @@ async def upload_report(
         raise HTTPException(status_code=501, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse document: {str(e)}")
+    phase_updates.append("Phase 1 completed: report parsed successfully.")
 
     parsed_benchmark = None
 
@@ -118,6 +121,7 @@ async def upload_report(
             parsed_benchmark = parser_service.parse_document(benchmark_path, "English")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to parse benchmark: {str(e)}")
+        phase_updates.append("Phase 3 completed: benchmark parsed and comparison context prepared.")
     elif comparison_mode and not benchmark_file:
         raise HTTPException(
             status_code=400, detail="Benchmark file required when comparison_mode is True"
@@ -130,6 +134,7 @@ async def upload_report(
         glossary_rules=get_reference_glossary_rules(),
         style_rules=get_reference_style_rules(),
     )
+    phase_updates.append("Phase 2 completed: deterministic linguistic and style checks applied.")
 
     # Run LLM review (Gemini or OpenAI based on config)
     findings_count = None
@@ -152,12 +157,14 @@ async def upload_report(
         findings = _dedupe_findings(findings)
         findings_count = len(findings)
         llm_status = "success"
+        phase_updates.append("Phase 4 completed: LLM visual/technical review applied.")
     except Exception as e:
         # If LLM is not configured or fails, keep deterministic findings
         findings = _dedupe_findings(findings)
         findings_count = len(findings)
         llm_status = "failed"
         llm_error = f"LLM review failed: {str(e)}"
+        phase_updates.append("Phase 4 failed: LLM visual/technical review could not be completed.")
 
     sheets_url = None
     sheets_status = "skipped"
@@ -187,6 +194,7 @@ async def upload_report(
         sheets_error=sheets_error,
         llm_status=llm_status,
         llm_error=llm_error,
+        phase_updates=phase_updates,
     )
 
 

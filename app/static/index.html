@@ -417,10 +417,6 @@
                 <pre id="phaseFrameworkPreview"></pre>
             </div>
             <div class="enforced-preview">
-                <h4>Scenario-based enforced prompt</h4>
-                <pre id="scenarioPromptPreview"></pre>
-            </div>
-            <div class="enforced-preview">
                 <h4>Available prompts in workflow</h4>
                 <p>Comparison prompt</p>
                 <pre id="comparisonPromptPreview"></pre>
@@ -443,7 +439,6 @@
         const closeInstructionsBtn = document.getElementById('closeInstructionsBtn');
         const downloadCsvBtn = document.getElementById('downloadCsvBtn');
         const phaseFrameworkPreview = document.getElementById('phaseFrameworkPreview');
-        const scenarioPromptPreview = document.getElementById('scenarioPromptPreview');
         const comparisonPromptPreview = document.getElementById('comparisonPromptPreview');
         const frenchPromptPreview = document.getElementById('frenchPromptPreview');
         let latestFindings = [];
@@ -464,11 +459,6 @@
 
         comparisonCheckbox.addEventListener('change', (e) => {
             benchmarkGroup.style.display = e.target.checked ? 'block' : 'none';
-            updateScenarioPromptPreview();
-        });
-
-        document.querySelectorAll('input[name="promptMode"]').forEach((radio) => {
-            radio.addEventListener('change', () => updateScenarioPromptPreview());
         });
 
         instructionsBtn.addEventListener('click', async () => {
@@ -476,7 +466,6 @@
             phaseFrameworkPreview.textContent = ENFORCED_PHASE_FRAMEWORK;
             comparisonPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
             frenchPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
-            updateScenarioPromptPreview();
         });
 
         closeInstructionsBtn.addEventListener('click', () => {
@@ -622,17 +611,6 @@
             } else {
                 sheetNode.textContent = '';
             }
-        }
-
-        function updateScenarioPromptPreview() {
-            const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'french_review';
-
-            if (promptMode === 'comparison') {
-                scenarioPromptPreview.textContent = ENFORCED_COMPARISON_PROMPT;
-                return;
-            }
-
-            scenarioPromptPreview.textContent = ENFORCED_FRENCH_REVIEW_PROMPT;
         }
 
         function downloadFindingsCsv() {

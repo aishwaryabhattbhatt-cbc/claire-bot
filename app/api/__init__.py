@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Optional
+import logging
 
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Query
 
@@ -18,6 +19,8 @@ from app.services.reference_service import (
 )
 from app.prompts.review_prompt import get_fixed_mode_instructions
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 parser_service = DocumentParserService()
@@ -98,25 +101,32 @@ async def upload_report(
     # Generate job ID
     job_id = generate_job_id()
     phase_updates: list[str] = []
-    phase_updates.append("Phase 1 completed: request validated and report received.")
+    logger.info(f"[{job_id}] Starting review process for report: {file.filename}")
+    phase_updates.append("Phase 1: Validating request and receiving report...")
+    logger.info(f"[{job_id}] Phase 1: Request validated and report received.")
 
     # Save report file
     report_content = await file.read()
     report_path = save_uploaded_file(report_content, file.filename, job_id, "report")
+    logger.info(f"[{job_id}] Report file saved. Parsing document...")
 
     # Parse the report immediately (V1 - sync parsing)
     try:
         parsed_report = parser_service.parse_document(report_path, report_language)
+        logger.info(f"[{job_id}] Report parsed successfully: {parsed_report.metadata.total_pages} pages")
     except NotImplementedError as e:
+        logger.error(f"[{job_id}] Parse error (not implemented): {str(e)}")
         raise HTTPException(status_code=501, detail=str(e))
     except Exception as e:
+        logger.error(f"[{job_id}] Parse error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to parse document: {str(e)}")
-    phase_updates.append("Phase 1 completed: report parsed successfully.")
+    phase_updates.append("Phase 1: Report parsing completed.")
 
     parsed_benchmark = None
 
     # Save benchmark file if provided
     if comparison_mode and benchmark_file:
+        logger.info(f"[{job_id}] Phase 2: Processing benchmark file...")
         if not benchmark_file.filename:
             raise HTTPException(status_code=400, detail="Benchmark file name is required")
 
@@ -135,28 +145,33 @@ async def upload_report(
         # Parse benchmark file
         try:
             parsed_benchmark = parser_service.parse_document(benchmark_path, "English")
+            logger.info(f"[{job_id}] Benchmark file parsed: {parsed_benchmark.metadata.total_pages} pages")
         except Exception as e:
+            logger.error(f"[{job_id}] Benchmark parse error: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to parse benchmark: {str(e)}")
-        phase_updates.append("Phase 3 completed: benchmark parsed and comparison context prepared.")
+        phase_updates.append("Phase 2: Benchmark file loaded.")
     elif comparison_mode and not benchmark_file:
         raise HTTPException(
             status_code=400, detail="Benchmark file required when comparison_mode is True"
         )
 
     # Deterministic checks first
+    logger.info(f"[{job_id}] Phase 3: Running deterministic checks...")
     findings = run_deterministic_checks(
         parsed_report,
         parsed_benchmark,
         glossary_rules=get_reference_glossary_rules(),
         style_rules=get_reference_style_rules(),
     )
-    phase_updates.append("Phase 2 completed: deterministic linguistic and style checks applied.")
+    logger.info(f"[{job_id}] Deterministic checks found {len(findings)} issues")
+    phase_updates.append("Phase 3: Deterministic checks completed.")
 
     # Run LLM review (Gemini or OpenAI based on config)
     findings_count = None
     llm_status = "skipped"
     llm_error = None
     instructions_text = get_fixed_mode_instructions(prompt_mode)
+    logger.info(f"[{job_id}] Phase 4: Starting LLM review (mode: {prompt_mode})...")
     try:
         llm_findings = review_with_llm(
             parsed_report,
@@ -169,28 +184,38 @@ async def upload_report(
         findings = _dedupe_findings(findings)
         findings_count = len(findings)
         llm_status = "success"
-        phase_updates.append("Phase 4 completed: LLM visual/technical review applied.")
+        logger.info(f"[{job_id}] LLM review completed. Total findings: {findings_count}")
+        phase_updates.append("Phase 4: LLM review completed.")
     except Exception as e:
         # If LLM is not configured or fails, keep deterministic findings
         findings = _dedupe_findings(findings)
         findings_count = len(findings)
         llm_status = "failed"
         llm_error = f"LLM review failed: {str(e)}"
-        phase_updates.append("Phase 4 failed: LLM visual/technical review could not be completed.")
+        logger.warning(f"[{job_id}] LLM review failed: {str(e)}")
+        phase_updates.append("Phase 4: LLM review failed. Using deterministic findings only.")
 
     sheets_url = None
     sheets_status = "skipped"
     sheets_error = None
     if settings.enable_sheets_writer and findings_count is not None:
+        logger.info(f"[{job_id}] Phase 5: Writing findings to Google Sheets...")
         try:
             sheets_writer = GoogleSheetsWriterService()
             sheet_result = sheets_writer.write_findings(findings)
             sheets_url = sheet_result.get("spreadsheet_url")
             sheets_status = "success"
+            logger.info(f"[{job_id}] Findings written to Google Sheets successfully")
+            phase_updates.append("Phase 5: Findings exported to Google Sheets.")
         except Exception as e:
             sheets_url = None
             sheets_status = "failed"
             sheets_error = f"Sheets write failed: {str(e)}"
+            logger.error(f"[{job_id}] Google Sheets write failed: {str(e)}")
+            phase_updates.append("Phase 5: Google Sheets export failed.")
+    
+    logger.info(f"[{job_id}] Review process completed. Status: success")
+    phase_updates.append("Review process completed successfully.")
 
     return FileUploadResponse(
         job_id=job_id,

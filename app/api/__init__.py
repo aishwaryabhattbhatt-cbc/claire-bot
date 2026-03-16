@@ -183,6 +183,9 @@ async def upload_report(
             reference_context=get_reference_context(),
             prompt_mode=prompt_mode,
         )
+        for f in llm_findings:
+            if not f.get("category"):
+                f["category"] = _infer_category(f.get("issue_detected", ""))
         findings.extend(llm_findings)
         findings = _dedupe_findings(findings)
         findings_count = len(findings)
@@ -335,6 +338,9 @@ async def upload_report_stream(
                         prompt_mode=prompt_mode,
                     ),
                 )
+                for f in llm_findings:
+                    if not f.get("category"):
+                        f["category"] = _infer_category(f.get("issue_detected", ""))
                 findings.extend(llm_findings)
                 findings = _dedupe_findings(findings)
                 llm_status = "success"
@@ -478,6 +484,28 @@ def delete_global_reference(category: str = Query(...)) -> dict:
         "removed_files": removed,
         "global_uploads": _get_global_uploads(docs),
     }
+
+
+_CATEGORY_KEYWORDS: list[tuple[str, list[str]]] = [
+    ("Language Purity",        ["english word", "language purity", "accent", "french word", "mot anglais"]),
+    ("Terminology",            ["terminolog", "glossary", "glossaire", "definition", "définition", "preferred term", "style guide"]),
+    ("Data Accuracy",          ["data", "percentage", "mismatch", "benchmark", "value", "number", "chiffre", "pourcentage", "données"]),
+    ("Formatting & Consistency",["capital", "uppercase", "lowercase", "casing", "font", "bold", "alignment", "number in letter", "ans", "age range", "format"]),
+    ("Footnotes & References", ["footnote", "asterisk", "note de bas", "renvoi", "page reference", "glossaire page"]),
+    ("Branding & Logos",       ["logo", "brand", "otm", "mtm", "branding"]),
+    ("Navigation & Structure", ["table of contents", "toc", "hyperlink", "link", "navigation", "section", "page number"]),
+    ("Methodology",            ["methodology", "méthodologie", "répondants", "sample", "target sample", "échantillon"]),
+    ("Summary Accuracy",       ["summary", "sommaire", "résumé", "overall report", "match"]),
+    ("Graphics & Legends",     ["legend", "graphic", "chart", "graph", "légende", "visual", "label", "cut off", "visible"]),
+]
+
+
+def _infer_category(issue_text: str) -> str:
+    lower = (issue_text or "").lower()
+    for category, keywords in _CATEGORY_KEYWORDS:
+        if any(kw in lower for kw in keywords):
+            return category
+    return "Other"
 
 
 def _dedupe_findings(findings: list[dict]) -> list[dict]:

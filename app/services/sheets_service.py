@@ -96,6 +96,7 @@ class GoogleSheetsWriterService:
                 "values": [[
                     "Page Number",
                     "Language of the report",
+                    "Category",
                     "Issue Detected",
                     "Proposed Change",
                 ]]
@@ -109,12 +110,14 @@ class GoogleSheetsWriterService:
         for finding in sorted_findings:
             page_number = finding.get("page_number", "-")
             language = finding.get("language", "-")
+            category = finding.get("category", "")
             issue = finding.get("issue_detected", "")
             proposed_change = finding.get("proposed_change", "")
 
             rows.append([
                 str(page_number),
                 str(language),
+                str(category),
                 str(issue),
                 str(proposed_change),
             ])

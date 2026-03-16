@@ -99,7 +99,8 @@ def build_review_prompt(
         "Review the report strictly using the instructions below. "
         "Return output as JSON ONLY. Use an object with key 'findings' containing a list of issues. "
         "Each issue must contain: "
-        "page_number (int), language (French|English), issue_detected (string), proposed_change (string).\n\n"
+        "page_number (int), language (French|English), category (string), issue_detected (string), proposed_change (string). "
+        "The category must be exactly one of: Language Purity, Terminology, Data Accuracy, Formatting & Consistency, Footnotes & References, Branding & Logos, Navigation & Structure, Methodology, Summary Accuracy, Graphics & Legends.\n\n"
     )
 
     header += f"Instructions:\n{rules_text}\n\n"

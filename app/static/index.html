@@ -1075,18 +1075,20 @@
             const headers = [
                 'Page Number',
                 'Language of the report',
+                'Category',
                 'Issue Detected',
                 'Proposed Change'
             ];
 
             const rows = [headers];
             if (!Array.isArray(latestFindings) || latestFindings.length === 0) {
-                rows.push(['-', '-', 'No issues detected', 'No change required']);
+                rows.push(['-', '-', '-', 'No issues detected', 'No change required']);
             } else {
                 latestFindings.forEach((f) => {
                     rows.push([
                         String(f.page_number ?? '-'),
                         String(f.language ?? '-'),
+                        String(f.category ?? ''),
                         String(f.issue_detected ?? ''),
                         String(f.proposed_change ?? ''),
                     ]);

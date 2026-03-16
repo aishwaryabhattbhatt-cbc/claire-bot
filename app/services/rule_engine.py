@@ -34,10 +34,11 @@ def run_deterministic_checks(
     return findings
 
 
-def _issue(page_number: int, language: str, issue_detected: str, proposed_change: str) -> Dict[str, Any]:
+def _issue(page_number: int, language: str, issue_detected: str, proposed_change: str, category: str = "") -> Dict[str, Any]:
     return {
         "page_number": int(page_number),
         "language": language,
+        "category": category,
         "issue_detected": issue_detected,
         "proposed_change": proposed_change,
     }
@@ -64,6 +65,7 @@ def _check_french_language_purity(report: ParsedDocument) -> List[Dict[str, Any]
                         "French",
                         f"English word '{english_word}' found in French content.",
                         f"Replace with French alternative: '{french_alt}'.",
+                        category="Language Purity",
                     )
                 )
 
@@ -83,6 +85,7 @@ def _check_age_labels(report: ParsedDocument) -> List[Dict[str, Any]]:
                     lang,
                     f"Age range '{m.group(0)}' is missing 'ans'.",
                     f"Use '{m.group(0)} ans' format.",
+                    category="Formatting & Consistency",
                 )
             )
 
@@ -115,6 +118,7 @@ def _check_methodology_consistency(report: ParsedDocument) -> List[Dict[str, Any
                             lang,
                             f"Methodology sample mismatch: found 'répondants {actual}'.",
                             f"Use 'répondants {expected_sample}'.",
+                            category="Methodology",
                         )
                     )
 
@@ -142,6 +146,7 @@ def _check_benchmark_alignment(report: ParsedDocument, benchmark: ParsedDocument
                 lang,
                 "Page count mismatch versus benchmark.",
                 f"Align page count with benchmark ({benchmark.metadata.total_pages}).",
+                category="Data Accuracy",
             )
         )
 
@@ -157,6 +162,7 @@ def _check_benchmark_alignment(report: ParsedDocument, benchmark: ParsedDocument
                     lang,
                     "Percentage values do not match benchmark on this page.",
                     "Update French values to match benchmark values exactly.",
+                    category="Data Accuracy",
                 )
             )
 
@@ -191,6 +197,7 @@ def _check_sentence_capitalization(report: ParsedDocument) -> List[Dict[str, Any
                             lang,
                             "Sentence starts with lowercase letter.",
                             "Start each new sentence with a capital letter.",
+                            category="Formatting & Consistency",
                         )
                     )
                     break
@@ -236,6 +243,7 @@ def _check_reference_glossary(
                         lang,
                         f"Reference terminology mismatch: found '{source}' without preferred term '{target}' ({origin}).",
                         f"Replace '{source}' with preferred terminology '{target}'.",
+                        category="Terminology",
                     )
                 )
                 page_hits += 1
@@ -285,6 +293,7 @@ def _check_reference_style_rules(
                         lang,
                         f"Style guide violation: forbidden term '{source}' found ({origin}).",
                         "Replace with approved Canadian/CBC style equivalent.",
+                        category="Terminology",
                     )
                 )
                 page_hits += 1
@@ -297,6 +306,7 @@ def _check_reference_style_rules(
                             lang,
                             f"Style guide replacement required: '{source}' should be '{target}' ({origin}).",
                             f"Replace '{source}' with '{target}'.",
+                            category="Terminology",
                         )
                     )
                     page_hits += 1

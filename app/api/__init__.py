@@ -163,7 +163,6 @@ async def upload_report(
     findings = run_deterministic_checks(
         parsed_report,
         parsed_benchmark,
-        glossary_rules=get_reference_glossary_rules(),
         style_rules=get_reference_style_rules(),
     )
     logger.info(f"[{job_id}] Deterministic checks found {len(findings)} issues")
@@ -317,7 +316,6 @@ async def upload_report_stream(
                 lambda: run_deterministic_checks(
                     parsed_report,
                     parsed_benchmark,
-                    glossary_rules=get_reference_glossary_rules(),
                     style_rules=get_reference_style_rules(),
                 ),
             )

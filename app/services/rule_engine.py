@@ -7,7 +7,6 @@ from app.models import ParsedDocument
 def run_deterministic_checks(
     report: ParsedDocument,
     benchmark: Optional[ParsedDocument] = None,
-    glossary_rules: Optional[List[Dict[str, str]]] = None,
     style_rules: Optional[List[Dict[str, str]]] = None,
 ) -> List[Dict[str, Any]]:
     findings: List[Dict[str, Any]] = []
@@ -24,9 +23,6 @@ def run_deterministic_checks(
 
     if benchmark is not None:
         findings.extend(_check_benchmark_alignment(report, benchmark))
-
-    if glossary_rules:
-        findings.extend(_check_reference_glossary(report, glossary_rules))
 
     if style_rules:
         findings.extend(_check_reference_style_rules(report, style_rules))

@@ -3,16 +3,15 @@ from typing import List, Dict, Any, Optional
 from app.core.config import get_settings
 from app.models import ParsedDocument
 from app.services.gemini_service import GeminiReviewService
-from app.services.openai_service import OpenAIReviewService
 
 
 def get_llm_service():
-    settings = get_settings()
-    provider = (settings.llm_provider or "gemini").lower()
+    """Always return the Gemini-based review service.
 
-    if provider == "openai":
-        return OpenAIReviewService()
-
+    The OpenAI provider option has been removed to enforce Gemini-only usage.
+    """
+    # Keep settings access in case other parts rely on it (temperature, model)
+    _ = get_settings()
     return GeminiReviewService()
 
 

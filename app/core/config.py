@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     gcp_project_id: Optional[str] = None
     gcp_location: str = "us-central1"
 
-    # Gemini
-    gemini_model: str = "gemini-2.0-flash"
+    # Gemini (default to gemini-2.5-flash)
+    gemini_model: str = "gemini-2.5-flash"
 
     # LLM Provider
     llm_provider: str = "gemini"

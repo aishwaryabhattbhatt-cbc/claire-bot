@@ -102,6 +102,7 @@
         }
         .form-group {
             margin-bottom: 24px;
+            width: 100%;
         }
         label {
             display: block;
@@ -582,6 +583,11 @@
                             <input type="file" id="benchmarkFile" accept=".pdf,.pptx,.docx,.doc">
                         </div>
 
+                        <div class="form-group">
+                            <label for="additionalContext">Additional Context (Optional)</label>
+                            <textarea id="additionalContext" placeholder="Add any specific instructions, focus areas, or context for this review. Example: 'Pay special attention to the methodology section' or 'This is a pilot report with new branding guidelines.'" style="min-height: 100px; width: 100%; font-family: inherit; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; resize: vertical;"></textarea>
+                        </div>
+
                         <button type="submit" id="submitBtn">Upload & Review</button>
                     </form>
 
@@ -623,17 +629,23 @@
                 </div>
 
                 <div class="tab-panel active" id="tabComparisonPanel">
-                    <label for="englishInstructionsTextarea">Comparison Instructions (fixed)</label>
-                    <textarea class="instructions-textarea" id="englishInstructionsTextarea" placeholder="Loading comparison instructions..." readonly></textarea>
+                    <label for="englishInstructionsTextarea">Comparison Instructions</label>
+                    <div class="file-note" id="comparisonInstructionsSource">Source: default</div>
+                    <textarea class="instructions-textarea" id="englishInstructionsTextarea" placeholder="Loading comparison instructions..."></textarea>
                 </div>
 
                 <div class="tab-panel" id="tabFrenchPanel">
-                    <label for="frenchInstructionsTextarea">French Review Instructions (fixed)</label>
-                    <textarea class="instructions-textarea" id="frenchInstructionsTextarea" placeholder="Loading French review instructions..." readonly></textarea>
+                    <label for="frenchInstructionsTextarea">French Review Instructions</label>
+                    <div class="file-note" id="frenchInstructionsSource">Source: default</div>
+                    <textarea class="instructions-textarea" id="frenchInstructionsTextarea" placeholder="Loading French review instructions..."></textarea>
                 </div>
 
                 <div class="modal-actions">
+                    <button class="secondary-btn" id="discardInstructionsBtn" type="button">Discard</button>
+                    <button class="secondary-btn" id="resetInstructionsBtn" type="button">Reset current tab</button>
+                    <button class="secondary-btn" id="saveInstructionsBtn" type="button">Save</button>
                 </div>
+                <div class="file-note" id="instructionsSaveStatus">No local changes.</div>
             </div>
 
             <div class="drawer-section" id="drawerReferences">
@@ -711,6 +723,12 @@
         const downloadCsvBtn = document.getElementById('downloadCsvBtn');
         const englishInstructionsTextarea = document.getElementById('englishInstructionsTextarea');
         const frenchInstructionsTextarea = document.getElementById('frenchInstructionsTextarea');
+        const comparisonInstructionsSource = document.getElementById('comparisonInstructionsSource');
+        const frenchInstructionsSource = document.getElementById('frenchInstructionsSource');
+        const saveInstructionsBtn = document.getElementById('saveInstructionsBtn');
+        const resetInstructionsBtn = document.getElementById('resetInstructionsBtn');
+        const discardInstructionsBtn = document.getElementById('discardInstructionsBtn');
+        const instructionsSaveStatus = document.getElementById('instructionsSaveStatus');
         const glossaryDocsPreview = document.getElementById('glossaryDocsPreview');
         const styleGuideDocsPreview = document.getElementById('styleGuideDocsPreview');
         const benchmarkGlobalFile = document.getElementById('benchmarkGlobalFile');
@@ -726,6 +744,12 @@
         const ageGlobalCurrent = document.getElementById('ageGlobalCurrent');
         const textGlobalCurrent = document.getElementById('textGlobalCurrent');
         let latestFindings = [];
+        let originalInstructions = {
+            comparison: '',
+            french: '',
+            comparison_source: 'default',
+            french_source: 'default',
+        };
 
         function setInstructionsTab(tabName) {
             const isComparison = tabName === 'comparison';
@@ -776,6 +800,25 @@
         tabComparisonBtn.addEventListener('click', () => setInstructionsTab('comparison'));
         tabFrenchBtn.addEventListener('click', () => setInstructionsTab('french'));
 
+        englishInstructionsTextarea.addEventListener('input', updateInstructionsDirtyState);
+        frenchInstructionsTextarea.addEventListener('input', updateInstructionsDirtyState);
+
+        saveInstructionsBtn.addEventListener('click', async () => {
+            await saveInstructions();
+        });
+
+        discardInstructionsBtn.addEventListener('click', () => {
+            englishInstructionsTextarea.value = originalInstructions.comparison;
+            frenchInstructionsTextarea.value = originalInstructions.french;
+            updateInstructionsDirtyState();
+            addStatus('Instruction changes discarded.');
+        });
+
+        resetInstructionsBtn.addEventListener('click', async () => {
+            const activeMode = tabComparisonPanel.classList.contains('active') ? 'comparison' : 'french';
+            await resetInstructions(activeMode);
+        });
+
         document.querySelectorAll('input[name="promptMode"]').forEach((radio) => {
             radio.addEventListener('change', updateFileInputsByPromptMode);
         });
@@ -815,6 +858,7 @@
             const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'french_review';
             const comparisonMode = promptMode === 'comparison';
             const benchmarkFile = document.getElementById('benchmarkFile').files[0];
+            const additionalContext = document.getElementById('additionalContext').value?.trim() || '';
 
             if (!reportFile) {
                 showResult('error', 'Error', 'Please select a report file');
@@ -838,6 +882,9 @@
             formData.append('prompt_mode', promptMode);
             if (benchmarkFile) {
                 formData.append('benchmark_file', benchmarkFile);
+            }
+            if (additionalContext) {
+                formData.append('additional_context', additionalContext);
             }
 
             submitBtn.disabled = true;
@@ -886,6 +933,17 @@
 
                         if (eventType === 'progress') {
                             addStatus(payload.message);
+                        } else if (eventType === 'phase') {
+                            const phaseName = payload.phase_name || payload.phase_id || 'Phase';
+                            const status = payload.status || 'unknown';
+                            const suffix = payload.message ? ` — ${payload.message}` : '';
+                            addStatus(`[${phaseName}] ${status}${suffix}`);
+                        } else if (eventType === 'substep') {
+                            const phaseName = payload.phase_name || payload.phase_id || 'Phase';
+                            const substep = payload.substep_name || payload.substep_id || 'step';
+                            const status = payload.status || 'unknown';
+                            const suffix = payload.message ? ` — ${payload.message}` : '';
+                            addStatus(`[${phaseName} > ${substep}] ${status}${suffix}`);
                         } else if (eventType === 'error') {
                             addStatus(`Error: ${payload.message}`);
                             showResult('error', 'Review Failed', payload.message);
@@ -899,6 +957,9 @@
 
                 if (finalData) {
                     addStatus(`Job ID: ${finalData.job_id}`);
+                    if (finalData.instructions_source) {
+                        addStatus(`Instructions source used: ${finalData.instructions_source}`);
+                    }
                     if (finalData.llm_status === 'failed') {
                         addStatus(`LLM review failed: ${finalData.llm_error || 'Unknown error'}`);
                     } else if (finalData.findings_count > 0) {
@@ -976,21 +1037,126 @@
             }
         }
 
+        function updateInstructionsDirtyState() {
+            const dirty =
+                englishInstructionsTextarea.value !== originalInstructions.comparison ||
+                frenchInstructionsTextarea.value !== originalInstructions.french;
+
+            instructionsSaveStatus.textContent = dirty ? 'Unsaved changes.' : 'No local changes.';
+            instructionsSaveStatus.style.color = dirty ? '#b45309' : '#4b5563';
+        }
+
         async function loadInstructions() {
             englishInstructionsTextarea.value = 'Loading...';
             frenchInstructionsTextarea.value = 'Loading...';
+            instructionsSaveStatus.textContent = 'Loading...';
+            instructionsSaveStatus.style.color = '#4b5563';
             try {
                 const response = await fetch('/instructions');
                 const data = await response.json();
                 if (!response.ok) {
                     throw new Error(data.detail || 'Failed to load instructions');
                 }
-                englishInstructionsTextarea.value = data.comparison_instructions || '';
-                frenchInstructionsTextarea.value = data.french_instructions || '';
+                originalInstructions = {
+                    comparison: data.comparison_instructions || '',
+                    french: data.french_instructions || '',
+                    comparison_source: data.comparison_source || 'default',
+                    french_source: data.french_source || 'default',
+                };
+                englishInstructionsTextarea.value = originalInstructions.comparison;
+                frenchInstructionsTextarea.value = originalInstructions.french;
+                comparisonInstructionsSource.textContent = `Source: ${originalInstructions.comparison_source}`;
+                frenchInstructionsSource.textContent = `Source: ${originalInstructions.french_source}`;
+                updateInstructionsDirtyState();
             } catch (error) {
                 englishInstructionsTextarea.value = '';
                 frenchInstructionsTextarea.value = '';
+                comparisonInstructionsSource.textContent = 'Source: unknown';
+                frenchInstructionsSource.textContent = 'Source: unknown';
+                instructionsSaveStatus.textContent = 'Failed to load instructions.';
+                instructionsSaveStatus.style.color = '#991b1b';
                 addStatus('Failed to load instructions.');
+            }
+        }
+
+        async function saveInstructions() {
+            const payload = {
+                comparison_instructions: englishInstructionsTextarea.value,
+                french_instructions: frenchInstructionsTextarea.value,
+            };
+
+            saveInstructionsBtn.disabled = true;
+            instructionsSaveStatus.textContent = 'Saving...';
+            instructionsSaveStatus.style.color = '#4b5563';
+
+            try {
+                const response = await fetch('/instructions', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to save instructions');
+                }
+
+                originalInstructions = {
+                    comparison: data.comparison_instructions || '',
+                    french: data.french_instructions || '',
+                    comparison_source: data.comparison_source || 'default',
+                    french_source: data.french_source || 'default',
+                };
+                englishInstructionsTextarea.value = originalInstructions.comparison;
+                frenchInstructionsTextarea.value = originalInstructions.french;
+                comparisonInstructionsSource.textContent = `Source: ${originalInstructions.comparison_source}`;
+                frenchInstructionsSource.textContent = `Source: ${originalInstructions.french_source}`;
+                updateInstructionsDirtyState();
+                instructionsSaveStatus.textContent = 'Saved successfully.';
+                instructionsSaveStatus.style.color = '#065f46';
+                addStatus('Instructions saved. Future reviews will use updated instructions.');
+            } catch (error) {
+                instructionsSaveStatus.textContent = `Save failed: ${error.message || 'Unknown error'}`;
+                instructionsSaveStatus.style.color = '#991b1b';
+                addStatus(`Failed to save instructions: ${error.message || 'Unknown error'}`);
+            } finally {
+                saveInstructionsBtn.disabled = false;
+            }
+        }
+
+        async function resetInstructions(mode) {
+            resetInstructionsBtn.disabled = true;
+            instructionsSaveStatus.textContent = 'Resetting...';
+            instructionsSaveStatus.style.color = '#4b5563';
+            try {
+                const response = await fetch('/instructions/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to reset instructions');
+                }
+                originalInstructions = {
+                    comparison: data.comparison_instructions || '',
+                    french: data.french_instructions || '',
+                    comparison_source: data.comparison_source || 'default',
+                    french_source: data.french_source || 'default',
+                };
+                englishInstructionsTextarea.value = originalInstructions.comparison;
+                frenchInstructionsTextarea.value = originalInstructions.french;
+                comparisonInstructionsSource.textContent = `Source: ${originalInstructions.comparison_source}`;
+                frenchInstructionsSource.textContent = `Source: ${originalInstructions.french_source}`;
+                updateInstructionsDirtyState();
+                instructionsSaveStatus.textContent = `Reset completed for ${mode}.`;
+                instructionsSaveStatus.style.color = '#065f46';
+                addStatus(`Instructions reset for mode: ${mode}.`);
+            } catch (error) {
+                instructionsSaveStatus.textContent = `Reset failed: ${error.message || 'Unknown error'}`;
+                instructionsSaveStatus.style.color = '#991b1b';
+                addStatus(`Failed to reset instructions: ${error.message || 'Unknown error'}`);
+            } finally {
+                resetInstructionsBtn.disabled = false;
             }
         }
 

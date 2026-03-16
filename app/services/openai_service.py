@@ -26,6 +26,7 @@ class OpenAIReviewService:
         instructions_text: Optional[str] = None,
         reference_context: Optional[str] = None,
         prompt_mode: Optional[str] = None,
+        additional_context: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         prompt = build_review_prompt(
             report,
@@ -33,6 +34,7 @@ class OpenAIReviewService:
             instructions_text=instructions_text,
             reference_context=reference_context,
             prompt_mode=prompt_mode,
+            additional_context=additional_context,
         )
 
         settings = get_settings()

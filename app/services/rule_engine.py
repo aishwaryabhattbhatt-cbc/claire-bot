@@ -11,18 +11,11 @@ def run_deterministic_checks(
 ) -> List[Dict[str, Any]]:
     findings: List[Dict[str, Any]] = []
 
-    findings.extend(_check_age_labels(report))
-    findings.extend(_check_methodology_consistency(report))
-    findings.extend(_check_sentence_capitalization(report))
-    # Spell checking disabled: current spell checkers produce unreliable results
-    # with too many false positives for French. Terminology and grammar are
-    # checked via glossary rules and LLM review instead.
-
-    if report.metadata.language.lower() == "french":
-        findings.extend(_check_french_language_purity(report))
-
-    if benchmark is not None:
-        findings.extend(_check_benchmark_alignment(report, benchmark))
+    # Deterministic checks removed. All formatting, capitalization, age labels,
+    # methodology consistency, benchmark alignment, and language purity checks
+    # are now performed by the LLM review with better context awareness.
+    #
+    # Only reference-based checks remain (glossary & style guide rules).
 
     if style_rules:
         findings.extend(_check_reference_style_rules(report, style_rules))
@@ -48,6 +41,15 @@ def _check_french_language_purity(report: ParsedDocument) -> List[Dict[str, Any]
         "television": "télévision",
         "market": "marché",
         "summary": "sommaire",
+        "viewers": "téléspectateurs",
+        "respondents": "répondants",
+        "platform": "plateforme",
+        "trends": "tendances",
+        "insights": "constats",
+        "online": "en ligne",
+        "listeners": "auditeurs",
+        "subscribers": "abonnés",
+        "households": "ménages",
     }
 
     for page in report.pages:

@@ -22,6 +22,7 @@ def review_with_llm(
     instructions_text: Optional[str] = None,
     reference_context: Optional[str] = None,
     prompt_mode: Optional[str] = None,
+    additional_context: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     service = get_llm_service()
     return service.review_document(
@@ -30,4 +31,5 @@ def review_with_llm(
         instructions_text=instructions_text,
         reference_context=reference_context,
         prompt_mode=prompt_mode,
+        additional_context=additional_context,
     )

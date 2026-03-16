@@ -2,6 +2,21 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+class TimelineSubstep(BaseModel):
+    id: str
+    name: str
+    status: str
+    message: Optional[str] = None
+
+
+class TimelinePhase(BaseModel):
+    id: str
+    name: str
+    status: str
+    message: Optional[str] = None
+    substeps: list[TimelineSubstep] = Field(default_factory=list)
+
+
 class ReviewRequest(BaseModel):
     """Request schema for /review endpoint"""
 
@@ -25,9 +40,14 @@ class FileUploadResponse(BaseModel):
     sheets_error: Optional[str] = Field(default=None, description="Sheets write error message if failed")
     llm_status: Optional[str] = Field(default=None, description="LLM execution status: success|failed|skipped")
     llm_error: Optional[str] = Field(default=None, description="LLM error message if failed")
+    instructions_source: Optional[str] = Field(default=None, description="Instructions source: custom|default")
     phase_updates: Optional[list[str]] = Field(
         default=None,
         description="Backend phase-by-phase status updates",
+    )
+    timeline: Optional[list[TimelinePhase]] = Field(
+        default=None,
+        description="Structured backend timeline with phase and sub-step statuses",
     )
 
 
@@ -41,3 +61,5 @@ class HealthResponse(BaseModel):
 class InstructionsResponse(BaseModel):
     comparison_instructions: str
     french_instructions: str
+    comparison_source: Optional[str] = None
+    french_source: Optional[str] = None

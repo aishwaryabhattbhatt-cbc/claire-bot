@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from app.core.config import get_settings
 
@@ -39,6 +39,47 @@ class InstructionsService:
             "comparison_instructions": (comparison_instructions or "").strip(),
             "french_instructions": (french_instructions or "").strip(),
         }
+        self._write_payload(payload)
+        return payload
+
+    def update_instructions(
+        self,
+        comparison_instructions: Optional[str] = None,
+        french_instructions: Optional[str] = None,
+    ) -> Dict[str, str]:
+        current = self.get_instructions()
+        payload = {
+            "comparison_instructions": (
+                current["comparison_instructions"]
+                if comparison_instructions is None
+                else (comparison_instructions or "").strip()
+            ),
+            "french_instructions": (
+                current["french_instructions"]
+                if french_instructions is None
+                else (french_instructions or "").strip()
+            ),
+        }
+        self._write_payload(payload)
+        return payload
+
+    def reset_instructions(self, mode: str = "all") -> Dict[str, str]:
+        mode = (mode or "all").strip().lower()
+        current = self.get_instructions()
+
+        if mode == "comparison":
+            payload = {
+                "comparison_instructions": "",
+                "french_instructions": current["french_instructions"],
+            }
+        elif mode == "french":
+            payload = {
+                "comparison_instructions": current["comparison_instructions"],
+                "french_instructions": "",
+            }
+        else:
+            payload = self._empty_payload()
+
         self._write_payload(payload)
         return payload
 

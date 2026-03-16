@@ -16,7 +16,6 @@ from app.services.rule_engine import run_deterministic_checks
 from app.services.reference_service import (
     get_reference_context,
     get_reference_documents,
-    get_reference_glossary_rules,
     reload_reference_documents,
     get_reference_style_rules,
 )
@@ -183,7 +182,7 @@ async def upload_report(
             prompt_mode=prompt_mode,
         )
         for f in llm_findings:
-            if not f.get("category"):
+            if not f.get("category") or f.get("category") not in VALID_CATEGORIES:
                 f["category"] = _infer_category(f.get("issue_detected", ""))
         findings.extend(llm_findings)
         findings = _dedupe_findings(findings)
@@ -337,7 +336,7 @@ async def upload_report_stream(
                     ),
                 )
                 for f in llm_findings:
-                    if not f.get("category"):
+                    if not f.get("category") or f.get("category") not in VALID_CATEGORIES:
                         f["category"] = _infer_category(f.get("issue_detected", ""))
                 findings.extend(llm_findings)
                 findings = _dedupe_findings(findings)
@@ -484,6 +483,19 @@ def delete_global_reference(category: str = Query(...)) -> dict:
     }
 
 
+VALID_CATEGORIES: set[str] = {
+    "Language Purity",
+    "Terminology",
+    "Data Accuracy",
+    "Formatting & Consistency",
+    "Footnotes & References",
+    "Branding & Logos",
+    "Navigation & Structure",
+    "Methodology",
+    "Summary Accuracy",
+    "Graphics & Legends",
+}
+
 _CATEGORY_KEYWORDS: list[tuple[str, list[str]]] = [
     ("Language Purity",        ["english word", "language purity", "accent", "french word", "mot anglais"]),
     ("Terminology",            ["terminolog", "glossary", "glossaire", "definition", "définition", "preferred term", "style guide"]),
@@ -507,8 +519,9 @@ def _infer_category(issue_text: str) -> str:
 
 
 def _dedupe_findings(findings: list[dict]) -> list[dict]:
-    seen = set()
-    unique = []
+    # First pass: exact deduplication
+    seen: set = set()
+    unique: list[dict] = []
     for item in findings:
         key = (
             item.get("page_number"),
@@ -520,9 +533,25 @@ def _dedupe_findings(findings: list[dict]) -> list[dict]:
             continue
         seen.add(key)
         unique.append(item)
+
+    # Second pass: collapse same page+category duplicates — keep the most detailed finding
+    # (longest combined issue_detected + proposed_change text)
+    page_cat_best: dict[tuple, dict] = {}
+    for item in unique:
+        pc_key = (item.get("page_number"), item.get("category"))
+        detail = len(item.get("issue_detected", "")) + len(item.get("proposed_change", ""))
+        existing = page_cat_best.get(pc_key)
+        if existing is None:
+            page_cat_best[pc_key] = item
+        else:
+            existing_detail = len(existing.get("issue_detected", "")) + len(existing.get("proposed_change", ""))
+            if detail > existing_detail:
+                page_cat_best[pc_key] = item
+
+    deduped = list(page_cat_best.values())
     # Sort by page number in ascending order
-    unique.sort(key=lambda x: (x.get("page_number") or 0))
-    return unique
+    deduped.sort(key=lambda x: (x.get("page_number") or 0))
+    return deduped
 
 
 def _get_global_uploads(docs: list[dict]) -> dict:

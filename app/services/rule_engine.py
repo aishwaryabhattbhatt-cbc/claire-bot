@@ -60,7 +60,7 @@ def _check_french_language_purity(report: ParsedDocument) -> List[Dict[str, Any]
                         page.page_number,
                         "French",
                         f"English word '{english_word}' found in French content.",
-                        f"Replace with French alternative: '{french_alt}'.",
+                        f"Remplacer par l'équivalent français : '{french_alt}'.",
                         category="Language Purity",
                     )
                 )
@@ -80,7 +80,7 @@ def _check_age_labels(report: ParsedDocument) -> List[Dict[str, Any]]:
                     page.page_number,
                     lang,
                     f"Age range '{m.group(0)}' is missing 'ans'.",
-                    f"Use '{m.group(0)} ans' format.",
+                    f"Utiliser le format '{m.group(0)} ans'.",
                     category="Formatting & Consistency",
                 )
             )
@@ -113,7 +113,7 @@ def _check_methodology_consistency(report: ParsedDocument) -> List[Dict[str, Any
                             page.page_number,
                             lang,
                             f"Methodology sample mismatch: found 'répondants {actual}'.",
-                            f"Use 'répondants {expected_sample}'.",
+                            f"Utiliser 'répondants {expected_sample}'.",
                             category="Methodology",
                         )
                     )
@@ -141,7 +141,7 @@ def _check_benchmark_alignment(report: ParsedDocument, benchmark: ParsedDocument
                 1,
                 lang,
                 "Page count mismatch versus benchmark.",
-                f"Align page count with benchmark ({benchmark.metadata.total_pages}).",
+                f"Aligner le nombre de pages sur le rapport de référence ({benchmark.metadata.total_pages} pages).",
                 category="Data Accuracy",
             )
         )
@@ -157,7 +157,7 @@ def _check_benchmark_alignment(report: ParsedDocument, benchmark: ParsedDocument
                     report.pages[idx].page_number,
                     lang,
                     "Percentage values do not match benchmark on this page.",
-                    "Update French values to match benchmark values exactly.",
+                    "Mettre à jour les valeurs françaises pour qu'elles correspondent exactement aux valeurs du rapport de référence.",
                     category="Data Accuracy",
                 )
             )
@@ -192,7 +192,7 @@ def _check_sentence_capitalization(report: ParsedDocument) -> List[Dict[str, Any
                             page.page_number,
                             lang,
                             "Sentence starts with lowercase letter.",
-                            "Start each new sentence with a capital letter.",
+                            "Commencer chaque nouvelle phrase par une majuscule.",
                             category="Formatting & Consistency",
                         )
                     )

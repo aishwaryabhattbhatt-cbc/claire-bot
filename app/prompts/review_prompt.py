@@ -30,7 +30,8 @@ COMPARISON_INSTRUCTIONS = """Phase 2: French Linguistic & Stylistic Rules (Radio
 - Glossary: MANDATORY — Strictly use ONLY the terms from the Reference Standards (ClaireBot list of definitions MTM (FR)). When you encounter terminology that matches a glossary entry, replace it with the preferred term exactly as defined in the glossary. Do NOT create your own definitions or suggestions—only reference the glossary. If a term appears in the report that exists in the glossary, flag it with the glossary definition.
 - Language Purity: Zero English words in French reports' text and graphics (e.g., use "Canadiens" instead of "Canadians", "membres" instead of "members"). Ensure accents are used properly in French text and graphs (e.g., "télévision" not "television"). Always perform a strict language purity double-check. Flag ONLY actual misspelled words (not proper nouns, geographic names, brand names, or acronyms).
 - Age References: In French reports only, graphs must use "ans" (e.g., "18-34 ans" or "18 à 34 ans").
-- Casing: Every new sentence must start with a capital letter (i.e., sentences starting after a period), except for sentences starting with a percentage. Acronyms must be defined in full at first use.
+- Casing: Every new sentence must start with a capital letter (i.e., sentences starting after a period), except for sentences starting with a percentage.
+- Acronyms: Do NOT flag missing acronym expansions at first use (e.g., FAST, VSDA, IA) as standalone findings if the term is understandable in context or defined elsewhere in the document.
 - Footnotes: When there is an asterisk (*) on the page or any other footnote indication (**, ***, ****), make sure there is a footnote explaining it on the same page. Similarly, if there is a footnote, make sure the asterisk (or whatever marker is used) appears in the text.
 - Text Preferences: In French, numbers should be written in letters in explanation text (e.g., "neuf" instead of "9"). This rule does not apply to percentages, hours, and ages.
 - Spelling: DO NOT flag as errors: proper nouns (Montréal, Toronto), brand names (Apple, Amazon, Netflix, Bell, Rogers), geographic locations, well-known acronyms (CBC, RMR, VSDA), or company names. Only flag actual spelling errors in common words.
@@ -45,7 +46,8 @@ Phase 4: Reviewing English Reports
 - Glossary: Strictly use terms from the ClaireBot list of definitions MTM (EN) and English Style Guide.
 - Logos: Use the official MTM logo if the report is in English.
 - Text Preferences: In English, numbers do not have to be written in letters.
-- Casing: Every new sentence must start with a capital letter (i.e., sentences starting after a period), except for sentences starting with a percentage. Acronyms must be defined in full at first use.
+- Casing: Every new sentence must start with a capital letter (i.e., sentences starting after a period), except for sentences starting with a percentage.
+- Acronyms: Do NOT flag missing acronym expansions at first use (e.g., FAST, VSDA, IA) as standalone findings if the term is understandable in context or defined elsewhere in the document.
 - Footnotes: When there is an asterisk (*) on the page or any other footnote indication (**, ***, ****), make sure there is a footnote explaining it on the same page. Similarly, if there is a footnote, make sure the asterisk (or whatever marker is used) appears in the text.
 - Visual & Technical Verification: Verify all steps in Phase 5 of these instructions.
 """
@@ -55,7 +57,8 @@ FRENCH_REVIEW_INSTRUCTIONS = """Phase 2: French Linguistic & Stylistic Rules (Ra
 - Glossary: MANDATORY — Strictly use ONLY the terms from the Reference Standards (ClaireBot list of definitions MTM (FR)). When you encounter terminology that matches a glossary entry, replace it with the preferred term exactly as defined in the glossary. Do NOT create your own definitions or suggestions—only reference the glossary. If a term appears in the report that exists in the glossary, flag it with the glossary definition.
 - Language Purity: Zero English words in French reports' text and graphics (e.g., use "Canadiens" instead of "Canadians", "membres" instead of "members"). Ensure accents are used properly in French text and graphs (e.g., "télévision" not "television"). Always perform a strict language purity double-check. Flag ONLY actual misspelled words (not proper nouns, geographic names, brand names, or acronyms).
 - Age References: In French reports only, graphs must use "ans" (e.g., "18-34 ans" or "18 à 34 ans").
-- Casing: Every new sentence must start with a capital letter (i.e., sentences starting after a period), except for sentences starting with a percentage. Acronyms must be defined in full at first use.
+- Casing: Every new sentence must start with a capital letter (i.e., sentences starting after a period), except for sentences starting with a percentage.
+- Acronyms: Do NOT flag missing acronym expansions at first use (e.g., FAST, VSDA, IA) as standalone findings if the term is understandable in context or defined elsewhere in the document.
 - Footnotes: When there is an asterisk (*) on the page or any other footnote indication (**, ***, ****), make sure there is a footnote explaining it on the same page. Similarly, if there is a footnote, make sure the asterisk (or whatever marker is used) appears in the text.
 - Text Preferences: In French, numbers should be written in letters in explanation text (e.g., "neuf" instead of "9"). This rule does not apply to percentages, hours, and ages.
 - Spelling: DO NOT flag as errors: proper nouns (Montréal, Toronto), brand names (Apple, Amazon, Netflix, Bell, Rogers), geographic locations, well-known acronyms (CBC, RMR, VSDA), or company names. Only flag actual spelling errors in common words.

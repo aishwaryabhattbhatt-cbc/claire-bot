@@ -166,6 +166,7 @@ async def upload_report(
     )
     logger.info(f"[{job_id}] Deterministic checks found {len(findings)} issues")
     phase_updates.append("Phase 3: Deterministic checks completed.")
+    findings = _filter_low_value_findings(findings)
 
     # Run LLM review (Gemini or OpenAI based on config)
     findings_count = None
@@ -182,9 +183,12 @@ async def upload_report(
             prompt_mode=prompt_mode,
         )
         for f in llm_findings:
-            if not f.get("category") or f.get("category") not in VALID_CATEGORIES:
-                f["category"] = _infer_category(f.get("issue_detected", ""))
+            f["category"] = _normalize_category(
+                f.get("category"),
+                f.get("issue_detected", ""),
+            )
         findings.extend(llm_findings)
+        findings = _filter_low_value_findings(findings)
         findings = _dedupe_findings(findings)
         findings_count = len(findings)
         llm_status = "success"
@@ -196,6 +200,7 @@ async def upload_report(
         findings_count = len(findings)
         llm_status = "failed"
         llm_error = f"LLM review failed: {str(e)}"
+        findings = _filter_low_value_findings(findings)
         logger.warning(f"[{job_id}] LLM review failed: {str(e)}")
         phase_updates.append("Phase 4: LLM review failed. Using deterministic findings only.")
 
@@ -319,6 +324,7 @@ async def upload_report_stream(
                 ),
             )
             yield _sse("progress", {"message": f"Phase 3: Checks complete — {len(findings)} issue(s) found so far."})
+            findings = _filter_low_value_findings(findings)
 
             yield _sse("progress", {"message": "Phase 4: Running LLM review (this may take a moment)..."})
             llm_status = "skipped"
@@ -336,9 +342,12 @@ async def upload_report_stream(
                     ),
                 )
                 for f in llm_findings:
-                    if not f.get("category") or f.get("category") not in VALID_CATEGORIES:
-                        f["category"] = _infer_category(f.get("issue_detected", ""))
+                    f["category"] = _normalize_category(
+                        f.get("category"),
+                        f.get("issue_detected", ""),
+                    )
                 findings.extend(llm_findings)
+                findings = _filter_low_value_findings(findings)
                 findings = _dedupe_findings(findings)
                 llm_status = "success"
                 yield _sse("progress", {"message": f"Phase 4: LLM review complete — {len(findings)} total finding(s)."})
@@ -346,6 +355,7 @@ async def upload_report_stream(
                 findings = _dedupe_findings(findings)
                 llm_status = "failed"
                 llm_error = str(e)
+                findings = _filter_low_value_findings(findings)
                 yield _sse("progress", {"message": "Phase 4: LLM review failed. Using deterministic findings only."})
 
             sheets_url = None
@@ -509,13 +519,65 @@ _CATEGORY_KEYWORDS: list[tuple[str, list[str]]] = [
     ("Graphics & Legends",     ["legend", "graphic", "chart", "graph", "légende", "visual", "label", "cut off", "visible"]),
 ]
 
+_CATEGORY_ALIASES: dict[str, str] = {
+    "casing": "Formatting & Consistency",
+    "formatting": "Formatting & Consistency",
+    "consistency": "Formatting & Consistency",
+    "footnotes": "Footnotes & References",
+    "references": "Footnotes & References",
+    "branding": "Branding & Logos",
+    "logos": "Branding & Logos",
+    "navigation": "Navigation & Structure",
+    "structure": "Navigation & Structure",
+    "summary": "Summary Accuracy",
+    "graphics": "Graphics & Legends",
+    "legends": "Graphics & Legends",
+}
+
+
+def _normalize_category(category: Optional[str], issue_text: str) -> str:
+    raw = (category or "").strip()
+    if raw in VALID_CATEGORIES:
+        return raw
+
+    lowered = raw.lower()
+    if lowered in _CATEGORY_ALIASES:
+        return _CATEGORY_ALIASES[lowered]
+
+    inferred = _infer_category(issue_text)
+    if inferred in VALID_CATEGORIES:
+        return inferred
+    return "Formatting & Consistency"
+
 
 def _infer_category(issue_text: str) -> str:
     lower = (issue_text or "").lower()
     for category, keywords in _CATEGORY_KEYWORDS:
         if any(kw in lower for kw in keywords):
             return category
-    return "Other"
+    return "Formatting & Consistency"
+
+
+def _filter_low_value_findings(findings: list[dict]) -> list[dict]:
+    filtered: list[dict] = []
+    for item in findings:
+        issue = (item.get("issue_detected") or "").lower()
+        proposed = (item.get("proposed_change") or "").lower()
+
+        # Drop noisy acronym-first-use findings such as FAST/VSDA/IA "not defined"
+        # unless there is a stronger contextual issue.
+        if "acronym" in issue and (
+            "defined" in issue
+            or "first use" in issue
+            or "defined" in proposed
+            or "first mention" in proposed
+        ):
+            continue
+
+        item["category"] = _normalize_category(item.get("category"), item.get("issue_detected", ""))
+        filtered.append(item)
+
+    return filtered
 
 
 def _dedupe_findings(findings: list[dict]) -> list[dict]:

@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     # LLM Provider
     llm_provider: str = "gemini"
+    llm_temperature: float = 0.0  # 0 = fully deterministic; increase for more variation
 
     # OpenAI
     openai_api_key: Optional[str] = None

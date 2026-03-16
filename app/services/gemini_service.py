@@ -2,6 +2,7 @@ import json
 from typing import List, Optional, Dict, Any
 
 import google.generativeai as genai
+from google.generativeai.types import GenerationConfig
 
 from app.core.config import get_settings
 from app.models import ParsedDocument
@@ -17,7 +18,14 @@ class GeminiReviewService:
             raise ValueError("GOOGLE_API_KEY is required for Gemini review")
 
         genai.configure(api_key=settings.google_api_key)
-        self.model = genai.GenerativeModel(settings.gemini_model)
+        self._generation_config = GenerationConfig(
+            temperature=settings.llm_temperature,
+            response_mime_type="application/json",
+        )
+        self.model = genai.GenerativeModel(
+            settings.gemini_model,
+            generation_config=self._generation_config,
+        )
 
     def review_document(
         self,
@@ -44,7 +52,8 @@ class GeminiReviewService:
 
         try:
             text = response.text.strip()
-            # Strip markdown code fences that Gemini often adds
+            # response_mime_type="application/json" means Gemini returns clean JSON.
+            # Strip markdown fences as a safety net in case of model version variance.
             if text.startswith("```"):
                 text = text.split("```", 2)[1]
                 if text.startswith("json"):
@@ -52,14 +61,11 @@ class GeminiReviewService:
                 text = text.rsplit("```", 1)[0].strip()
 
             parsed = json.loads(text)
-            # Handle {"findings": [...]} wrapper (standard shape)
             if isinstance(parsed, dict) and "findings" in parsed:
                 return parsed["findings"]
-            # Handle bare list (legacy shape)
             if isinstance(parsed, list):
                 return parsed
         except Exception:
             pass
 
-        # Fallback if parsing fails
         return []

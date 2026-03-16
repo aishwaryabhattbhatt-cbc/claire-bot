@@ -35,9 +35,12 @@ class OpenAIReviewService:
             prompt_mode=prompt_mode,
         )
 
+        settings = get_settings()
         response = self.client.responses.create(
             model=self.model,
             input=prompt,
+            temperature=settings.llm_temperature,
+            seed=42,
             text={
                 "format": {
                     "type": "json_schema",
@@ -52,12 +55,14 @@ class OpenAIReviewService:
                                     "properties": {
                                         "page_number": {"type": "integer"},
                                         "language": {"type": "string"},
+                                        "category": {"type": "string"},
                                         "issue_detected": {"type": "string"},
                                         "proposed_change": {"type": "string"},
                                     },
                                     "required": [
                                         "page_number",
                                         "language",
+                                        "category",
                                         "issue_detected",
                                         "proposed_change",
                                     ],

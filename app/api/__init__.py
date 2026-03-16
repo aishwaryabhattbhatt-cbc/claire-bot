@@ -1,8 +1,11 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, AsyncGenerator
+import asyncio
+import json
 import logging
 
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Query
+from fastapi.responses import StreamingResponse
 
 from app.schemas import FileUploadResponse, InstructionsResponse
 from app.services import generate_job_id, save_uploaded_file
@@ -233,6 +236,151 @@ async def upload_report(
         llm_error=llm_error,
         phase_updates=phase_updates,
     )
+
+
+def _sse(event: str, data: dict) -> str:
+    """Format a Server-Sent Event string."""
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+@router.post("/review/stream")
+async def upload_report_stream(
+    file: UploadFile = File(...),
+    report_language: str = Form("French"),
+    comparison_mode: bool = Form(False),
+    prompt_mode: str = Form("french_review"),
+    benchmark_file: Optional[UploadFile] = File(None),
+) -> StreamingResponse:
+    """Streaming version of /review — yields SSE progress events then the final result."""
+
+    # Validate inputs up-front before streaming starts
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="File name is required")
+    if Path(file.filename).suffix.lower() not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+    if report_language not in ["French", "English"]:
+        raise HTTPException(status_code=400, detail="Language must be 'French' or 'English'")
+    if prompt_mode not in {"comparison", "french_review"}:
+        raise HTTPException(status_code=400, detail="prompt_mode must be one of: comparison, french_review")
+    if prompt_mode == "comparison" and not comparison_mode:
+        raise HTTPException(status_code=400, detail="comparison prompt requires comparison_mode=true")
+    if prompt_mode == "french_review" and report_language != "French":
+        raise HTTPException(status_code=400, detail="french_review prompt requires report_language='French'")
+    if comparison_mode and not benchmark_file:
+        raise HTTPException(status_code=400, detail="Benchmark file required when comparison_mode is True")
+
+    # Read file bytes before entering the generator (UploadFile is not reusable)
+    report_content = await file.read()
+    benchmark_content = await benchmark_file.read() if benchmark_file else None
+
+    async def generate() -> AsyncGenerator[str, None]:
+        loop = asyncio.get_event_loop()
+        job_id = generate_job_id()
+
+        try:
+            yield _sse("progress", {"message": "Phase 1: Receiving and saving files..."})
+            report_path = await loop.run_in_executor(
+                None, save_uploaded_file, report_content, file.filename, job_id, "report"
+            )
+
+            yield _sse("progress", {"message": "Phase 1: Parsing document..."})
+            try:
+                parsed_report = await loop.run_in_executor(
+                    None, parser_service.parse_document, report_path, report_language
+                )
+            except Exception as e:
+                yield _sse("error", {"message": f"Failed to parse document: {str(e)}"})
+                return
+            yield _sse("progress", {"message": f"Phase 1: Report parsed — {parsed_report.metadata.total_pages} pages found."})
+
+            parsed_benchmark = None
+            if comparison_mode and benchmark_content and benchmark_file:
+                yield _sse("progress", {"message": "Phase 2: Parsing benchmark document..."})
+                benchmark_path = await loop.run_in_executor(
+                    None, save_uploaded_file, benchmark_content, benchmark_file.filename, job_id, "benchmark"
+                )
+                try:
+                    parsed_benchmark = await loop.run_in_executor(
+                        None, parser_service.parse_document, benchmark_path, "English"
+                    )
+                except Exception as e:
+                    yield _sse("error", {"message": f"Failed to parse benchmark: {str(e)}"})
+                    return
+                yield _sse("progress", {"message": f"Phase 2: Benchmark loaded — {parsed_benchmark.metadata.total_pages} pages."})
+
+            yield _sse("progress", {"message": "Phase 3: Running glossary and language checks..."})
+            findings = await loop.run_in_executor(
+                None,
+                lambda: run_deterministic_checks(
+                    parsed_report,
+                    parsed_benchmark,
+                    glossary_rules=get_reference_glossary_rules(),
+                    style_rules=get_reference_style_rules(),
+                ),
+            )
+            yield _sse("progress", {"message": f"Phase 3: Checks complete — {len(findings)} issue(s) found so far."})
+
+            yield _sse("progress", {"message": "Phase 4: Running LLM review (this may take a moment)..."})
+            llm_status = "skipped"
+            llm_error = None
+            instructions_text = get_fixed_mode_instructions(prompt_mode)
+            try:
+                llm_findings = await loop.run_in_executor(
+                    None,
+                    lambda: review_with_llm(
+                        parsed_report,
+                        parsed_benchmark,
+                        instructions_text=instructions_text,
+                        reference_context=get_reference_context(),
+                        prompt_mode=prompt_mode,
+                    ),
+                )
+                findings.extend(llm_findings)
+                findings = _dedupe_findings(findings)
+                llm_status = "success"
+                yield _sse("progress", {"message": f"Phase 4: LLM review complete — {len(findings)} total finding(s)."})
+            except Exception as e:
+                findings = _dedupe_findings(findings)
+                llm_status = "failed"
+                llm_error = str(e)
+                yield _sse("progress", {"message": "Phase 4: LLM review failed. Using deterministic findings only."})
+
+            sheets_url = None
+            sheets_status = "skipped"
+            sheets_error = None
+            if settings.enable_sheets_writer:
+                yield _sse("progress", {"message": "Phase 5: Exporting findings to Google Sheets..."})
+                try:
+                    sheets_writer = GoogleSheetsWriterService()
+                    sheet_result = await loop.run_in_executor(None, sheets_writer.write_findings, findings)
+                    sheets_url = sheet_result.get("spreadsheet_url")
+                    sheets_status = "success"
+                    yield _sse("progress", {"message": "Phase 5: Findings exported to Google Sheets."})
+                except Exception as e:
+                    sheets_status = "failed"
+                    sheets_error = str(e)
+                    yield _sse("progress", {"message": "Phase 5: Google Sheets export failed."})
+
+            yield _sse("done", {
+                "job_id": job_id,
+                "file_name": file.filename,
+                "report_language": report_language,
+                "comparison_mode": comparison_mode,
+                "findings_count": len(findings),
+                "findings": findings,
+                "sheets_url": sheets_url,
+                "sheets_status": sheets_status,
+                "sheets_error": sheets_error,
+                "llm_status": llm_status,
+                "llm_error": llm_error,
+                "message": f"Review complete. Found {parsed_report.metadata.total_pages} pages.",
+            })
+
+        except Exception as e:
+            logger.exception(f"Unexpected error in stream: {e}")
+            yield _sse("error", {"message": f"Unexpected error: {str(e)}"})
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @router.get("/instructions", response_model=InstructionsResponse)

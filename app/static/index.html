@@ -844,59 +844,85 @@
             loading.style.display = 'block';
             result.style.display = 'none';
 
-            addStatus('Upload started. Saving file...');
+            addStatus('Submitting report for review...');
 
             try {
-                const response = await fetch('/review', {
+                const response = await fetch('/review/stream', {
                     method: 'POST',
                     body: formData
                 });
 
-                const data = await response.json();
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    addStatus('Upload failed: server returned an error.');
+                    showResult('error', 'Upload Failed', err.detail || 'Unknown error');
+                    latestFindings = [];
+                    downloadCsvBtn.style.display = 'none';
+                    return;
+                }
 
-                if (response.ok) {
-                    if (Array.isArray(data.phase_updates) && data.phase_updates.length > 0) {
-                        data.phase_updates.forEach((msg) => addStatus(msg));
-                    } else {
-                        addStatus('Parsing document (PDF parser)...');
-                        if (comparisonMode) {
-                            addStatus('Parsing benchmark document...');
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let finalData = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // SSE lines are separated by double newlines
+                    const parts = buffer.split('\n\n');
+                    buffer = parts.pop(); // keep incomplete chunk
+
+                    for (const part of parts) {
+                        const eventLine = part.match(/^event: (.+)$/m);
+                        const dataLine = part.match(/^data: (.+)$/m);
+                        if (!eventLine || !dataLine) continue;
+
+                        const eventType = eventLine[1].trim();
+                        let payload;
+                        try { payload = JSON.parse(dataLine[1]); } catch { continue; }
+
+                        if (eventType === 'progress') {
+                            addStatus(payload.message);
+                        } else if (eventType === 'error') {
+                            addStatus(`Error: ${payload.message}`);
+                            showResult('error', 'Review Failed', payload.message);
+                            latestFindings = [];
+                            downloadCsvBtn.style.display = 'none';
+                        } else if (eventType === 'done') {
+                            finalData = payload;
                         }
-                        addStatus('Running LLM review...');
-                        addStatus('Generating response...');
                     }
-                    addStatus(`Job ID: ${data.job_id}`);
-                    if (data.llm_status === 'failed') {
-                        addStatus(`Review failed: ${data.llm_error || 'Unknown LLM error'}`);
-                    } else if (Array.isArray(data.findings) && data.findings.length > 0) {
-                        addStatus(`Review completed with ${data.findings.length} finding(s).`);
+                }
+
+                if (finalData) {
+                    addStatus(`Job ID: ${finalData.job_id}`);
+                    if (finalData.llm_status === 'failed') {
+                        addStatus(`LLM review failed: ${finalData.llm_error || 'Unknown error'}`);
+                    } else if (finalData.findings_count > 0) {
+                        addStatus(`Review complete — ${finalData.findings_count} finding(s) detected.`);
                     } else {
-                        addStatus('Review completed: no issues detected.');
+                        addStatus('Review complete — no issues detected.');
                     }
-                    if (data.sheets_status === 'success' && data.sheets_url) {
-                        addStatus('Findings written to Google Sheets.');
-                    } else if (data.sheets_status === 'failed') {
-                        addStatus(`Google Sheets write failed: ${data.sheets_error || 'Unknown error'}`);
-                    } else {
-                        addStatus('Google Sheets write skipped.');
+                    if (finalData.sheets_status === 'success' && finalData.sheets_url) {
+                        addStatus('Findings exported to Google Sheets.');
+                    } else if (finalData.sheets_status === 'failed') {
+                        addStatus(`Google Sheets export failed: ${finalData.sheets_error || 'Unknown error'}`);
                     }
                     showResult(
                         'success',
-                        'Upload Successful',
-                        data.message,
-                        `${data.findings_count !== null ? `Findings: ${data.findings_count}` : ''}`,
-                        data.sheets_url || ''
+                        'Review Complete',
+                        finalData.message,
+                        `${finalData.findings_count !== null ? `Findings: ${finalData.findings_count}` : ''}`,
+                        finalData.sheets_url || ''
                     );
-                    latestFindings = Array.isArray(data.findings) ? data.findings : [];
+                    latestFindings = Array.isArray(finalData.findings) ? finalData.findings : [];
                     downloadCsvBtn.style.display = 'inline-block';
                     form.reset();
                     document.getElementById('promptFrenchReview').checked = true;
                     updateFileInputsByPromptMode();
-                } else {
-                    addStatus('Upload failed: server returned an error.');
-                    showResult('error', 'Upload Failed', data.detail || 'Unknown error');
-                    latestFindings = [];
-                    downloadCsvBtn.style.display = 'none';
                 }
             } catch (error) {
                 addStatus('Upload failed: could not reach server.');

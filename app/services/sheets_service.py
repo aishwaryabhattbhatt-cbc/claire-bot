@@ -104,7 +104,9 @@ class GoogleSheetsWriterService:
 
     def _normalize_findings(self, findings: List[Dict[str, Any]]) -> List[List[str]]:
         rows: List[List[str]] = []
-        for finding in findings or []:
+        # Sort findings by page number in ascending order
+        sorted_findings = sorted(findings or [], key=lambda x: (x.get("page_number") or 0))
+        for finding in sorted_findings:
             page_number = finding.get("page_number", "-")
             language = finding.get("language", "-")
             issue = finding.get("issue_detected", "")

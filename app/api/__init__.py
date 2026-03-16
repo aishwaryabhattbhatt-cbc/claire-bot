@@ -321,6 +321,8 @@ def _dedupe_findings(findings: list[dict]) -> list[dict]:
             continue
         seen.add(key)
         unique.append(item)
+    # Sort by page number in ascending order
+    unique.sort(key=lambda x: (x.get("page_number") or 0))
     return unique
 
 

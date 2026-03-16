@@ -1,8 +1,17 @@
 import re
 from typing import Any, Dict, List, Optional
-from spellchecker import SpellChecker
 
 from app.models import ParsedDocument
+
+# Try to import LanguageTool for better French grammar/spell checking
+try:
+    from language_tool_python import LanguageTool
+    HAS_LANGUAGE_TOOL = True
+except ImportError:
+    HAS_LANGUAGE_TOOL = False
+
+# Fallback to pyspellchecker if LanguageTool not available
+from spellchecker import SpellChecker
 
 
 def run_deterministic_checks(
@@ -198,15 +207,15 @@ def _check_sentence_capitalization(report: ParsedDocument) -> List[Dict[str, Any
 
 
 def _check_spelling(report: ParsedDocument) -> List[Dict[str, Any]]:
+    """
+    Check spelling and grammar using LanguageTool (for French) or pyspellchecker (fallback).
+    LanguageTool provides better French support with context-aware checking.
+    """
     findings: List[Dict[str, Any]] = []
     lang = report.metadata.language
+    lang_lower = lang.lower()
 
-    if lang.lower() == "french":
-        spell = SpellChecker(language="fr")
-    else:
-        spell = SpellChecker(language="en")
-
-    # Ignore words: acronyms, proper nouns, brand names, geographic locations
+    # Common words/proper nouns that should never be flagged as errors
     ignore_words = {
         "mtm",
         "otm",
@@ -275,14 +284,95 @@ def _check_spelling(report: ParsedDocument) -> List[Dict[str, Any]]:
         "cbc",
         "ici",
         "rdi",
-        # Common French words that spellchecker might flag
+        # Common tech/internet terms
         "internet",
         "email",
         "podcast",
         "balado",
+        "wifi",
+        "app",
+        "apps",
     }
 
+    # Use LanguageTool for French if available
+    if lang_lower == "french" and HAS_LANGUAGE_TOOL:
+        return _check_spelling_with_language_tool(report, "fr-CA", ignore_words)
+    elif lang_lower == "english" and HAS_LANGUAGE_TOOL:
+        return _check_spelling_with_language_tool(report, "en-US", ignore_words)
+    else:
+        # Fallback to pyspellchecker
+        return _check_spelling_with_pyspellchecker(report, lang_lower, ignore_words)
+
+
+def _check_spelling_with_language_tool(
+    report: ParsedDocument, lang_code: str, ignore_words: set
+) -> List[Dict[str, Any]]:
+    """Check spelling and grammar using LanguageTool (better for French)."""
+    findings: List[Dict[str, Any]] = []
+    try:
+        tool = LanguageTool(lang_code, disable_ssl_verification=True)
+    except Exception as e:
+        # Fallback if LanguageTool initialization fails
+        import logging
+        logging.warning("LanguageTool initialization failed: %s. Falling back to pyspellchecker.", e)
+        return _check_spelling_with_pyspellchecker(report, lang_code.split("-")[0].lower(), ignore_words)
+
+    lang = report.metadata.language
+
+    for page in report.pages:
+        text = page.text or ""
+        if not text.strip():
+            continue
+
+        try:
+            matches = tool.check(text)
+            flagged = 0
+
+            for match in matches:
+                # Skip matches that are in our ignore list
+                error_word = text[match.offset : match.offset + match.length].lower()
+                if error_word in ignore_words:
+                    continue
+
+                # Only flag actual spelling errors (TYPOS, SPELLING, etc.), not style issues
+                rule_id = match.ruleId.lower()
+                if "typo" in rule_id or "spelling" in rule_id or "misspell" in rule_id:
+                    suggestion = match.replacements[0] if match.replacements else ""
+                    if suggestion and suggestion.lower() != error_word:
+                        findings.append(
+                            _issue(
+                                page.page_number,
+                                lang,
+                                f"Spelling error: '{error_word}'.",
+                                f"Consider '{suggestion}'.",
+                            )
+                        )
+                        flagged += 1
+                        if flagged >= 3:
+                            break
+
+        except Exception as e:
+            # Log but continue if LanguageTool check fails for a page
+            import logging
+            logging.warning("LanguageTool check failed for page %d: %s", page.page_number, e)
+            continue
+
+    return findings
+
+
+def _check_spelling_with_pyspellchecker(
+    report: ParsedDocument, lang_code: str, ignore_words: set
+) -> List[Dict[str, Any]]:
+    """Fallback spelling check using pyspellchecker."""
+    findings: List[Dict[str, Any]] = []
+
+    if lang_code == "french":
+        spell = SpellChecker(language="fr")
+    else:
+        spell = SpellChecker(language="en")
+
     token_pattern = re.compile(r"\b[A-Za-zÀ-ÖØ-öø-ÿ']{4,}\b")
+    lang = report.metadata.language
 
     for page in report.pages:
         text = page.text or ""

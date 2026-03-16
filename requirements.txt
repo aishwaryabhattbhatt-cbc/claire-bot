@@ -30,7 +30,3 @@ openpyxl==3.1.5
 
 # Tests
 pytest==8.3.5
-
-# Spell checking and grammar
-pyspellchecker==0.8.2
-language-tool-python==3.3.0

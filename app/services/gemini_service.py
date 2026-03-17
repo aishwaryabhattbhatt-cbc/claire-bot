@@ -74,6 +74,19 @@ class GeminiReviewService:
                 print(f"Response Tokens: {candidate_tokens} (Cost: ${output_cost:.6f})")
                 print(f"Total Tokens: {total_tokens}")
                 print(f"Total Estimated Cost: ${total_cost:.6f}")
+                # Persist usage info on the service instance for external access
+                try:
+                    self._last_usage = {
+                        "prompt_tokens": int(prompt_tokens),
+                        "response_tokens": int(candidate_tokens),
+                        "total_tokens": int(total_tokens),
+                        "input_cost": float(input_cost),
+                        "output_cost": float(output_cost),
+                        "total_cost": float(total_cost),
+                    }
+                except Exception:
+                    # Safe fallback: ensure attribute exists
+                    self._last_usage = None
         except Exception as _err:
             # Never fail the review because logging failed
             print("Failed to extract usage metadata for cost logging:", _err)

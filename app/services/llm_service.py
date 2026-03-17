@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 from app.core.config import get_settings
 from app.models import ParsedDocument
@@ -22,9 +22,9 @@ def review_with_llm(
     reference_context: Optional[str] = None,
     prompt_mode: Optional[str] = None,
     additional_context: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
     service = get_llm_service()
-    return service.review_document(
+    findings = service.review_document(
         report,
         benchmark,
         instructions_text=instructions_text,
@@ -32,3 +32,5 @@ def review_with_llm(
         prompt_mode=prompt_mode,
         additional_context=additional_context,
     )
+    usage = getattr(service, "_last_usage", None)
+    return findings, usage

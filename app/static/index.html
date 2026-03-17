@@ -949,6 +949,18 @@
                             showResult('error', 'Review Failed', payload.message);
                             latestFindings = [];
                             downloadCsvBtn.style.display = 'none';
+                        } else if (eventType === 'usage') {
+                            // Usage payload contains token counts and estimated costs
+                            try {
+                                const u = payload || {};
+                                addStatus('--- Usage & Cost for this run ---');
+                                addStatus(`Prompt Tokens: ${u.prompt_tokens ?? u.prompt_tokens} (Cost: $${(u.input_cost || 0).toFixed(6)})`);
+                                addStatus(`Response Tokens: ${u.response_tokens ?? u.response_tokens} (Cost: $${(u.output_cost || 0).toFixed(6)})`);
+                                addStatus(`Total Tokens: ${u.total_tokens ?? ( (u.prompt_tokens||0) + (u.response_tokens||0) )}`);
+                                addStatus(`Estimated Cost: $${(u.total_cost || 0).toFixed(6)}`);
+                            } catch (e) {
+                                // ignore
+                            }
                         } else if (eventType === 'done') {
                             finalData = payload;
                         }

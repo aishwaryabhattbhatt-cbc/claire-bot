@@ -309,7 +309,7 @@ async def upload_report(
     _timeline_add_substep(timeline, "phase_4", "build_prompt", "Build LLM prompt", "success")
     try:
         _timeline_add_substep(timeline, "phase_4", "invoke_llm", "Invoke LLM provider", "running")
-        llm_findings = review_with_llm(
+        llm_findings, llm_usage = review_with_llm(
             parsed_report,
             parsed_benchmark,
             instructions_text=instructions_text,
@@ -438,6 +438,7 @@ async def upload_report(
         sheets_error=sheets_error,
         llm_status=llm_status,
         llm_error=llm_error,
+        llm_usage=llm_usage if 'llm_usage' in locals() else None,
         instructions_source=instruction_source,
         phase_updates=phase_updates,
         timeline=timeline,
@@ -666,7 +667,7 @@ async def upload_report_stream(
                 await emit_substep("phase_4", "LLM Review", "invoke_llm", "Invoke LLM provider", "running")
                 async for evt in flush_sse():
                     yield evt
-                llm_findings = await loop.run_in_executor(
+                llm_result = await loop.run_in_executor(
                     None,
                     lambda: review_with_llm(
                         parsed_report,
@@ -677,6 +678,12 @@ async def upload_report_stream(
                         additional_context=additional_context,
                     ),
                 )
+                # review_with_llm returns (findings, usage) tuple. Support both legacy and new formats.
+                if isinstance(llm_result, tuple) and len(llm_result) == 2:
+                    llm_findings, llm_usage = llm_result
+                else:
+                    llm_findings = llm_result
+                    llm_usage = None
                 for f in llm_findings:
                     f["category"] = _normalize_category(
                         f.get("category"),
@@ -697,6 +704,11 @@ async def upload_report_stream(
                 await emit_phase("phase_4", "LLM Review", "success", "LLM review completed")
                 async for evt in flush_sse():
                     yield evt
+                    # Emit usage/cost info to the frontend activity log via SSE
+                    if llm_usage:
+                        nonlocal_sse.append(_sse("usage", llm_usage))
+                        async for evt in flush_sse():
+                            yield evt
                 yield _sse("progress", {"message": f"Phase 4: LLM review complete — {len(findings)} total finding(s)."})
             except Exception as e:
                 findings = _dedupe_findings(findings)

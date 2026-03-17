@@ -52,6 +52,32 @@ class GeminiReviewService:
         )
         response = self.model.generate_content(prompt)
 
+        # --- Usage & Cost Logging (per-run) ---
+        try:
+            usage = getattr(response, "usage_metadata", None)
+            if usage is not None:
+                # Define pricing per 1 million tokens
+                INPUT_PRICE_PER_M = 0.10
+                OUTPUT_PRICE_PER_M = 0.40
+
+                prompt_tokens = getattr(usage, "prompt_token_count", 0) or 0
+                candidate_tokens = getattr(usage, "candidates_token_count", 0) or 0
+                total_tokens = getattr(usage, "total_token_count", prompt_tokens + candidate_tokens) or (prompt_tokens + candidate_tokens)
+
+                input_cost = (prompt_tokens / 1_000_000) * INPUT_PRICE_PER_M
+                output_cost = (candidate_tokens / 1_000_000) * OUTPUT_PRICE_PER_M
+                total_cost = input_cost + output_cost
+
+                # Print to backend logs so Cloud Run logs capture cost per report in real-time
+                print("--- Usage & Cost for this run ---")
+                print(f"Prompt Tokens: {prompt_tokens} (Cost: ${input_cost:.6f})")
+                print(f"Response Tokens: {candidate_tokens} (Cost: ${output_cost:.6f})")
+                print(f"Total Tokens: {total_tokens}")
+                print(f"Total Estimated Cost: ${total_cost:.6f}")
+        except Exception as _err:
+            # Never fail the review because logging failed
+            print("Failed to extract usage metadata for cost logging:", _err)
+
         try:
             text = response.text.strip()
             # response_mime_type="application/json" means Gemini returns clean JSON.

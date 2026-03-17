@@ -1048,14 +1048,25 @@ def _group_similar_findings(findings: list[dict]) -> list[dict]:
         if not matched:
             grouped["other"].append(finding)
     
-    # Sort findings within each group and across groups
-    result = []
-    for group_key in grouped:
-        if grouped[group_key]:
-            # Sort by page number within group
-            group_sorted = sorted(grouped[group_key], key=lambda x: (x.get("page_number") or 0))
-            result.extend(group_sorted)
-    
+    # Sort findings within each group by page number, then sort groups by the
+    # page number of their first occurrence so overall ordering remains
+    # chronological while still grouping similar issues together.
+    groups_with_min_page = []
+    for group_key, items in grouped.items():
+        if not items:
+            continue
+        group_sorted = sorted(items, key=lambda x: (x.get("page_number") or 0))
+        min_page = group_sorted[0].get("page_number") or 0
+        groups_with_min_page.append((min_page, group_sorted))
+
+    # Sort groups by their earliest page number
+    groups_with_min_page.sort(key=lambda t: t[0])
+
+    # Flatten
+    result: list[dict] = []
+    for _, group_sorted in groups_with_min_page:
+        result.extend(group_sorted)
+
     return result
 
 

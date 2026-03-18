@@ -7,6 +7,12 @@ from google.generativeai.types import GenerationConfig
 from app.core.config import get_settings
 from app.models import ParsedDocument
 from app.prompts.review_prompt import build_review_prompt
+from app.services.usage_service import record_gemini_usage
+
+
+MODEL_PRICING = {
+    "gemini-2.5-flash": {"input_per_m": 0.10, "output_per_m": 0.40},
+}
 
 
 class GeminiReviewService:
@@ -25,6 +31,13 @@ class GeminiReviewService:
         self.model = genai.GenerativeModel(
             settings.gemini_model,
             generation_config=self._generation_config,
+        )
+        self.model_name = settings.gemini_model
+
+    def _pricing_for_model(self) -> Dict[str, float]:
+        return MODEL_PRICING.get(
+            self.model_name,
+            MODEL_PRICING["gemini-2.5-flash"],
         )
 
     def review_document(
@@ -56,36 +69,53 @@ class GeminiReviewService:
         try:
             usage = getattr(response, "usage_metadata", None)
             if usage is not None:
-                # Define pricing per 1 million tokens
-                INPUT_PRICE_PER_M = 0.10
-                OUTPUT_PRICE_PER_M = 0.40
+                pricing = self._pricing_for_model()
+                input_price_per_m = pricing["input_per_m"]
+                output_price_per_m = pricing["output_per_m"]
 
                 prompt_tokens = getattr(usage, "prompt_token_count", 0) or 0
                 candidate_tokens = getattr(usage, "candidates_token_count", 0) or 0
+                cached_tokens = getattr(usage, "cached_content_token_count", 0) or 0
+                thoughts_tokens = getattr(usage, "thoughts_token_count", 0) or 0
                 total_tokens = getattr(usage, "total_token_count", prompt_tokens + candidate_tokens) or (prompt_tokens + candidate_tokens)
 
-                input_cost = (prompt_tokens / 1_000_000) * INPUT_PRICE_PER_M
-                output_cost = (candidate_tokens / 1_000_000) * OUTPUT_PRICE_PER_M
+                input_cost = (prompt_tokens / 1_000_000) * input_price_per_m
+                output_cost = (candidate_tokens / 1_000_000) * output_price_per_m
                 total_cost = input_cost + output_cost
 
-                # Print to backend logs so Cloud Run logs capture cost per report in real-time
-                print("--- Usage & Cost for this run ---")
+                latest_usage = {
+                    "provider": "gemini",
+                    "model": self.model_name,
+                    "pricing_source": "configured_model_rates",
+                    "prompt_tokens": int(prompt_tokens),
+                    "response_tokens": int(candidate_tokens),
+                    "cached_tokens": int(cached_tokens),
+                    "thoughts_tokens": int(thoughts_tokens),
+                    "total_tokens": int(total_tokens),
+                    "input_cost": float(input_cost),
+                    "output_cost": float(output_cost),
+                    "total_cost": float(total_cost),
+                }
+
+                usage_summary = record_gemini_usage(latest_usage)
+
+                # Print to backend logs so Cloud Run logs capture actual API usage totals.
+                print("--- Gemini usage for latest API call ---")
+                print(f"Model: {self.model_name}")
                 print(f"Prompt Tokens: {prompt_tokens} (Cost: ${input_cost:.6f})")
                 print(f"Response Tokens: {candidate_tokens} (Cost: ${output_cost:.6f})")
+                print(f"Cached Tokens: {cached_tokens}")
+                print(f"Thoughts Tokens: {thoughts_tokens}")
                 print(f"Total Tokens: {total_tokens}")
-                print(f"Total Estimated Cost: ${total_cost:.6f}")
-                # Persist usage info on the service instance for external access
+                print(f"Calculated Cost: ${total_cost:.6f}")
+                print("--- Gemini cumulative usage ---")
+                print(f"Call Count: {usage_summary['cumulative']['call_count']}")
+                print(f"Cumulative Tokens: {usage_summary['cumulative']['total_tokens']}")
+                print(f"Cumulative Cost: ${usage_summary['cumulative']['total_cost']:.6f}")
+
                 try:
-                    self._last_usage = {
-                        "prompt_tokens": int(prompt_tokens),
-                        "response_tokens": int(candidate_tokens),
-                        "total_tokens": int(total_tokens),
-                        "input_cost": float(input_cost),
-                        "output_cost": float(output_cost),
-                        "total_cost": float(total_cost),
-                    }
+                    self._last_usage = usage_summary
                 except Exception:
-                    # Safe fallback: ensure attribute exists
                     self._last_usage = None
         except Exception as _err:
             # Never fail the review because logging failed

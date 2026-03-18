@@ -973,14 +973,20 @@
                             latestFindings = [];
                             downloadCsvBtn.style.display = 'none';
                         } else if (eventType === 'usage') {
-                            // Usage payload contains token counts and estimated costs
                             try {
                                 const u = payload || {};
-                                addStatus('--- Usage & Cost for this run ---');
-                                addStatus(`Prompt Tokens: ${u.prompt_tokens ?? u.prompt_tokens} (Cost: $${(u.input_cost || 0).toFixed(6)})`);
-                                addStatus(`Response Tokens: ${u.response_tokens ?? u.response_tokens} (Cost: $${(u.output_cost || 0).toFixed(6)})`);
-                                addStatus(`Total Tokens: ${u.total_tokens ?? ( (u.prompt_tokens||0) + (u.response_tokens||0) )}`);
-                                addStatus(`Estimated Cost: $${(u.total_cost || 0).toFixed(6)}`);
+                                const latest = u.latest || u;
+                                const cumulative = u.cumulative || null;
+                                addStatus('--- Gemini usage for latest API call ---');
+                                addStatus(`Prompt Tokens: ${Number(latest.prompt_tokens || 0)} (Cost: $${Number(latest.input_cost || 0).toFixed(6)})`);
+                                addStatus(`Response Tokens: ${Number(latest.response_tokens || 0)} (Cost: $${Number(latest.output_cost || 0).toFixed(6)})`);
+                                addStatus(`Total Tokens: ${Number(latest.total_tokens || (Number(latest.prompt_tokens || 0) + Number(latest.response_tokens || 0)))}`);
+                                addStatus(`Calculated Cost: $${Number(latest.total_cost || 0).toFixed(6)}`);
+                                if (cumulative) {
+                                    addStatus(`Cumulative Gemini calls: ${Number(cumulative.call_count || 0)}`);
+                                    addStatus(`Cumulative Tokens: ${Number(cumulative.total_tokens || 0)}`);
+                                    addStatus(`Cumulative Cost: $${Number(cumulative.total_cost || 0).toFixed(6)}`);
+                                }
                             } catch (e) {
                                 // ignore
                             }
@@ -1072,13 +1078,21 @@
             } else {
                 sheetNode.textContent = '';
             }
-            if (llmUsage && (llmUsage.total_cost !== undefined || llmUsage.total_cost !== null)) {
+            if (llmUsage) {
                 try {
-                    const tc = Number(llmUsage.total_cost || 0);
-                    const pt = Number(llmUsage.prompt_tokens || 0);
-                    const rt = Number(llmUsage.response_tokens || 0);
-                    const tt = Number(llmUsage.total_tokens || (pt + rt));
-                    costNode.textContent = `Estimated LLM cost: $${tc.toFixed(6)} (Prompt: ${pt} tokens, Response: ${rt} tokens, Total: ${tt})`;
+                    const latest = llmUsage.latest || llmUsage;
+                    const cumulative = llmUsage.cumulative || null;
+                    const latestCost = Number(latest.total_cost || 0);
+                    const latestPrompt = Number(latest.prompt_tokens || 0);
+                    const latestResponse = Number(latest.response_tokens || 0);
+                    const latestTotal = Number(latest.total_tokens || (latestPrompt + latestResponse));
+                    const cumulativeCost = Number(cumulative?.total_cost || 0);
+                    const cumulativeCalls = Number(cumulative?.call_count || 0);
+                    const cumulativeTokens = Number(cumulative?.total_tokens || 0);
+                    const model = latest.model || llmUsage.model || 'Gemini';
+                    costNode.textContent = cumulative
+                        ? `Gemini cumulative cost: $${cumulativeCost.toFixed(6)} across ${cumulativeCalls} API call(s) and ${cumulativeTokens} total tokens. Latest call on ${model}: $${latestCost.toFixed(6)} (Prompt: ${latestPrompt}, Response: ${latestResponse}, Total: ${latestTotal}).`
+                        : `Gemini cost: $${latestCost.toFixed(6)} on ${model} (Prompt: ${latestPrompt}, Response: ${latestResponse}, Total: ${latestTotal}).`;
                 } catch (e) {
                     costNode.textContent = '';
                 }

@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from typing import Any, Dict, List, Optional
 
 from app.models import ParsedDocument
@@ -254,27 +255,51 @@ def _is_glossary_page(text: str) -> bool:
 def _check_reference_terms(report: ParsedDocument, glossary_rules: List[Dict[str, str]]) -> List[Dict[str, Any]]:
     """Check that terms used in the report match the canonical term (column 1).
 
-    Flags a finding when the report contains a case-insensitive match of the
-    term but does not contain the exact (case-sensitive) canonical term.
+    Flags a finding only when the report appears to contain a loose variant of
+    the term without containing the normalized canonical term itself.
+
+    Important: pure case differences should not be flagged. In practice the
+    parser and OCR layers can change casing or unicode normalization while the
+    underlying term is still correct.
     """
     findings: List[Dict[str, Any]] = []
     lang = report.metadata.language
     report_lang = (lang or "").strip().lower()
+
+    def _normalize_text(s: str) -> str:
+        # Normalize unicode (NFC) and convert NBSP to normal space, collapse multiple spaces.
+        if not s:
+            return ""
+        n = unicodedata.normalize("NFC", s)
+        n = n.replace("\u00A0", " ")
+        n = re.sub(r"\s+", " ", n)
+        return n.strip()
+
+    def _contains_canonical_term(text_value: str, canonical_term: str) -> bool:
+        # Treat case-only differences as equivalent to avoid false positives
+        # like "Télévision en ligne" vs "télévision en ligne".
+        text_folded = text_value.casefold()
+        canonical_folded = canonical_term.casefold()
+        esc = re.escape(canonical_folded).replace(r"\ ", r"\s+")
+        return bool(re.search(rf"(?<!\w){esc}(?!\w)", text_folded))
+
+    def _strip_accents(s: str) -> str:
+        decomposed = unicodedata.normalize("NFD", s)
+        return "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
+
+    def _contains_loose_variant(text_value: str, canonical_term: str) -> bool:
+        # Detect looser variants such as accent loss while still requiring the
+        # same underlying token sequence.
+        text_folded = _strip_accents(text_value).casefold()
+        canonical_folded = _strip_accents(canonical_term).casefold()
+        esc = re.escape(canonical_folded).replace(r"\ ", r"\s+")
+        return bool(re.search(rf"(?<!\w){esc}(?!\w)", text_folded))
 
     for page in report.pages:
         raw_text = page.text or ""
         text = _normalize_text(raw_text)
         if not text:
             continue
-
-        def _normalize_text(s: str) -> str:
-            # Normalize unicode (NFC) and convert NBSP to normal space, collapse multiple spaces
-            if not s:
-                return ""
-            n = unicodedata.normalize("NFC", s)
-            n = n.replace("\u00A0", " ")
-            n = re.sub(r"\s+", " ", n)
-            return n.strip()
 
         page_hits = 0
         for rule in glossary_rules:
@@ -293,16 +318,11 @@ def _check_reference_terms(report: ParsedDocument, glossary_rules: List[Dict[str
             if not source_norm:
                 continue
 
-            # Build patterns from normalized source and allow flexible whitespace
-            esc = re.escape(source_norm).replace(r"\ ", r"\s+")
-            exact_pattern = re.compile(rf"\b{esc}\b")
-            ci_pattern = re.compile(rf"\b{esc}\b", flags=re.IGNORECASE)
+            # If the normalized canonical term is present, it is acceptable.
+            if _contains_canonical_term(text, source_norm):
+                continue
 
-            ci_found = bool(ci_pattern.search(text))
-            exact_found = bool(exact_pattern.search(text))
-
-            # If some variant exists but exact canonical term is missing -> discrepancy
-            if ci_found and not exact_found:
+            if _contains_loose_variant(text, source_norm):
                 findings.append(
                     _issue(
                         page.page_number,

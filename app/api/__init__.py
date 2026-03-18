@@ -18,6 +18,7 @@ from app.services.reference_service import (
     get_reference_documents,
     reload_reference_documents,
     get_reference_style_rules,
+    get_reference_glossary_rules,
 )
 from app.prompts.review_prompt import get_fixed_mode_instructions
 from app.core.config import get_settings
@@ -267,6 +268,7 @@ async def upload_report(
     findings = run_deterministic_checks(
         parsed_report,
         parsed_benchmark,
+        glossary_rules=get_reference_glossary_rules(),
         style_rules=get_reference_style_rules(),
     )
     _timeline_add_substep(
@@ -330,6 +332,9 @@ async def upload_report(
                 f.get("category"),
                 f.get("issue_detected", ""),
             )
+        for f in llm_findings:
+            if "source" not in f:
+                f["source"] = "llm"
         findings.extend(llm_findings)
         findings = _filter_low_value_findings(findings)
         findings = _dedupe_findings(findings)
@@ -620,6 +625,7 @@ async def upload_report_stream(
                 lambda: run_deterministic_checks(
                     parsed_report,
                     parsed_benchmark,
+                    glossary_rules=get_reference_glossary_rules(),
                     style_rules=get_reference_style_rules(),
                 ),
             )
@@ -689,6 +695,9 @@ async def upload_report_stream(
                         f.get("category"),
                         f.get("issue_detected", ""),
                     )
+                for f in llm_findings:
+                    if "source" not in f:
+                        f["source"] = "llm"
                 findings.extend(llm_findings)
                 findings = _filter_low_value_findings(findings)
                 findings = _dedupe_findings(findings)
@@ -796,6 +805,7 @@ async def upload_report_stream(
                 "sheets_error": sheets_error,
                 "llm_status": llm_status,
                 "llm_error": llm_error,
+                "llm_usage": llm_usage if 'llm_usage' in locals() else None,
                 "instructions_source": instruction_source,
                 "timeline": timeline,
                 "message": f"Review complete. Found {parsed_report.metadata.total_pages} pages.",
@@ -1108,6 +1118,15 @@ def _dedupe_findings(findings: list[dict]) -> list[dict]:
         if existing is None:
             page_cat_best[pc_key] = item
         else:
+            # Prefer deterministic findings over LLM when collapsing duplicates
+            existing_source = existing.get("source")
+            item_source = item.get("source")
+            if existing_source == "deterministic" and item_source != "deterministic":
+                # keep existing deterministic
+                continue
+            if item_source == "deterministic" and existing_source != "deterministic":
+                page_cat_best[pc_key] = item
+                continue
             existing_detail = len(existing.get("issue_detected", "")) + len(existing.get("proposed_change", ""))
             if detail > existing_detail:
                 page_cat_best[pc_key] = item
@@ -1138,3 +1157,16 @@ def _get_global_uploads(docs: list[dict]) -> dict:
 def get_review_status(job_id: str) -> dict:
     """Get status of a review job (placeholder for step 3+)"""
     return {"job_id": job_id, "status": "pending", "message": "Review in progress. Check back soon."}
+
+
+@router.get("/docs/rule_engine")
+def get_rule_engine_doc() -> dict:
+    """Return the rule engine explanation markdown used by the frontend "How it works" tab."""
+    docs_path = Path(__file__).resolve().parents[2] / "docs" / "rule_engine_explanation.md"
+    if not docs_path.exists():
+        raise HTTPException(status_code=404, detail="Rule engine documentation not found")
+    try:
+        content = docs_path.read_text(encoding="utf-8")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read documentation: {e}")
+    return {"content": content}

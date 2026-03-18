@@ -601,6 +601,7 @@
                         <div class="result-detail" id="resultMessage"></div>
                         <div class="result-detail" id="resultJobId"></div>
                         <div class="result-detail" id="resultSheet"></div>
+                        <div class="result-detail" id="resultCost"></div>
                         <div class="result-actions">
                             <button type="button" class="download-btn" id="downloadCsvBtn">Download findings CSV</button>
                         </div>
@@ -613,6 +614,7 @@
                 <button class="sidebar-btn active" id="navLogsBtn" type="button" title="Backend Logs" aria-label="Backend Logs"><span class="label">Backend Logs</span></button>
                 <button class="sidebar-btn" id="navInstructionsBtn" type="button" title="Instructions" aria-label="Instructions"><span class="label">Instructions</span></button>
                 <button class="sidebar-btn" id="navReferencesBtn" type="button" title="Reference Documents" aria-label="Reference Documents"><span class="label">References</span></button>
+                <button class="sidebar-btn" id="navHowItWorksBtn" type="button" title="How it works" aria-label="How it works"><span class="label">How it works</span></button>
             </div>
             <div class="drawer-header">
                 <div class="drawer-title" id="drawerTitle">Backend Activity</div>
@@ -697,6 +699,16 @@
                     <pre id="styleGuideDocsPreview">Loading...</pre>
                 </div>
             </div>
+            
+            <div class="drawer-section" id="drawerHowItWorks">
+                <div class="drawer-header">
+                    <div class="drawer-title">How the Rule Engine Works</div>
+                </div>
+                <div class="reference-block" style="margin-top: 10px;">
+                    <h4>Rule Engine Explanation</h4>
+                    <pre id="ruleEngineDocPreview" style="white-space: pre-wrap;">Loading...</pre>
+                </div>
+            </div>
             </aside>
         </div>
     </div>
@@ -712,10 +724,12 @@
         const navLogsBtn = document.getElementById('navLogsBtn');
         const navInstructionsBtn = document.getElementById('navInstructionsBtn');
         const navReferencesBtn = document.getElementById('navReferencesBtn');
+        const navHowItWorksBtn = document.getElementById('navHowItWorksBtn');
         const drawerTitle = document.getElementById('drawerTitle');
         const drawerLogs = document.getElementById('drawerLogs');
         const drawerInstructions = document.getElementById('drawerInstructions');
         const drawerReferences = document.getElementById('drawerReferences');
+        const drawerHowItWorks = document.getElementById('drawerHowItWorks');
         const tabComparisonBtn = document.getElementById('tabComparisonBtn');
         const tabFrenchBtn = document.getElementById('tabFrenchBtn');
         const tabComparisonPanel = document.getElementById('tabComparisonPanel');
@@ -763,7 +777,7 @@
         }
 
         function setActiveSidebar(button) {
-            [navLogsBtn, navInstructionsBtn, navReferencesBtn].forEach((btn) => {
+            [navLogsBtn, navInstructionsBtn, navReferencesBtn, navHowItWorksBtn].forEach((btn) => {
                 btn.classList.toggle('active', btn === button);
             });
         }
@@ -772,11 +786,14 @@
             drawerLogs.classList.toggle('active', sectionName === 'logs');
             drawerInstructions.classList.toggle('active', sectionName === 'instructions');
             drawerReferences.classList.toggle('active', sectionName === 'references');
+            drawerHowItWorks.classList.toggle('active', sectionName === 'howitworks');
             drawerTitle.textContent = sectionName === 'logs'
                 ? 'Backend Activity'
                 : sectionName === 'instructions'
                     ? 'Review Instructions'
-                    : 'Reference Documents';
+                    : sectionName === 'references'
+                        ? 'Reference Documents'
+                        : 'How it works';
         }
 
         navLogsBtn.addEventListener('click', () => {
@@ -795,6 +812,12 @@
             setActiveSidebar(navReferencesBtn);
             openDrawer('references');
             await loadReferenceDocuments();
+        });
+
+        navHowItWorksBtn.addEventListener('click', async () => {
+            setActiveSidebar(navHowItWorksBtn);
+            openDrawer('howitworks');
+            await loadRuleEngineDoc();
         });
 
         tabComparisonBtn.addEventListener('click', () => setInstructionsTab('comparison'));
@@ -984,13 +1007,14 @@
                     } else if (finalData.sheets_status === 'failed') {
                         addStatus(`Google Sheets export failed: ${finalData.sheets_error || 'Unknown error'}`);
                     }
-                    showResult(
-                        'success',
-                        'Review Complete',
-                        finalData.message,
-                        `${finalData.findings_count !== null ? `Findings: ${finalData.findings_count}` : ''}`,
-                        finalData.sheets_url || ''
-                    );
+                        showResult(
+                            'success',
+                            'Review Complete',
+                            finalData.message,
+                            `${finalData.findings_count !== null ? `Findings: ${finalData.findings_count}` : ''}`,
+                            finalData.sheets_url || '',
+                            finalData.llm_usage || null
+                        );
                     latestFindings = Array.isArray(finalData.findings) ? finalData.findings : [];
                     downloadCsvBtn.style.display = 'inline-block';
                     form.reset();
@@ -1035,17 +1059,31 @@
             statusList.appendChild(item);
         }
 
-        function showResult(type, title, message, jobId = '', sheetsUrl = '') {
+        function showResult(type, title, message, jobId = '', sheetsUrl = '', llmUsage = null) {
             result.className = `result ${type}`;
             result.style.display = 'block';
             document.getElementById('resultTitle').textContent = title;
             document.getElementById('resultMessage').textContent = message;
             document.getElementById('resultJobId').textContent = jobId;
             const sheetNode = document.getElementById('resultSheet');
+            const costNode = document.getElementById('resultCost');
             if (sheetsUrl) {
                 sheetNode.innerHTML = `Google Sheets: <a href="${sheetsUrl}" target="_blank" rel="noopener noreferrer">Open output</a>`;
             } else {
                 sheetNode.textContent = '';
+            }
+            if (llmUsage && (llmUsage.total_cost !== undefined || llmUsage.total_cost !== null)) {
+                try {
+                    const tc = Number(llmUsage.total_cost || 0);
+                    const pt = Number(llmUsage.prompt_tokens || 0);
+                    const rt = Number(llmUsage.response_tokens || 0);
+                    const tt = Number(llmUsage.total_tokens || (pt + rt));
+                    costNode.textContent = `Estimated LLM cost: $${tc.toFixed(6)} (Prompt: ${pt} tokens, Response: ${rt} tokens, Total: ${tt})`;
+                } catch (e) {
+                    costNode.textContent = '';
+                }
+            } else {
+                costNode.textContent = '';
             }
         }
 
@@ -1205,6 +1243,19 @@
             }
         }
 
+        async function loadRuleEngineDoc() {
+            const preview = document.getElementById('ruleEngineDocPreview');
+            preview.textContent = 'Loading...';
+            try {
+                const res = await fetch('/docs/rule_engine');
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to load rule engine documentation');
+                preview.textContent = data.content || 'No documentation available.';
+            } catch (err) {
+                preview.textContent = `Failed to load documentation: ${err.message || err}`;
+            }
+        }
+
         async function uploadGlobalReference(category, inputEl) {
             const selected = inputEl.files && inputEl.files[0];
             if (!selected) {
@@ -1257,20 +1308,39 @@
                 'Issue Detected',
                 'Proposed Change'
             ];
-
             const rows = [headers];
             if (!Array.isArray(latestFindings) || latestFindings.length === 0) {
                 rows.push(['-', '-', '-', 'No issues detected', 'No change required']);
             } else {
-                latestFindings.forEach((f) => {
-                    rows.push([
-                        String(f.page_number ?? '-'),
-                        String(f.language ?? '-'),
-                        String(f.category ?? ''),
-                        String(f.issue_detected ?? ''),
-                        String(f.proposed_change ?? ''),
-                    ]);
-                });
+                const deterministic = latestFindings.filter((f) => f.source === 'deterministic');
+                const others = latestFindings.filter((f) => f.source !== 'deterministic');
+
+                if (deterministic.length > 0) {
+                    rows.push(['', '', '--- Deterministic Findings ---', '', '']);
+                    deterministic.sort((a, b) => ( (a.page_number||0) - (b.page_number||0) )).forEach((f) => {
+                        rows.push([
+                            String(f.page_number ?? '-'),
+                            String(f.language ?? '-'),
+                            String(f.category ?? ''),
+                            String(f.issue_detected ?? ''),
+                            String(f.proposed_change ?? ''),
+                        ]);
+                    });
+                    rows.push(['', '', '', '', '']);
+                }
+
+                if (others.length > 0) {
+                    rows.push(['', '', '--- LLM Findings ---', '', '']);
+                    others.sort((a, b) => ( (a.page_number||0) - (b.page_number||0) )).forEach((f) => {
+                        rows.push([
+                            String(f.page_number ?? '-'),
+                            String(f.language ?? '-'),
+                            String(f.category ?? ''),
+                            String(f.issue_detected ?? ''),
+                            String(f.proposed_change ?? ''),
+                        ]);
+                    });
+                }
             }
 
             const csv = rows
@@ -1299,6 +1369,8 @@
 
         updateFileInputsByPromptMode();
         loadReferenceDocuments();
+        // Load latest instruction set from backend at startup
+        loadInstructions();
     </script>
 </body>
 </html>

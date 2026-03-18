@@ -105,20 +105,41 @@ class GoogleSheetsWriterService:
 
     def _normalize_findings(self, findings: List[Dict[str, Any]]) -> List[List[str]]:
         rows: List[List[str]] = []
-        # Sort findings by page number in ascending order
-        sorted_findings = sorted(findings or [], key=lambda x: (x.get("page_number") or 0))
-        for finding in sorted_findings:
-            page_number = finding.get("page_number", "-")
-            language = finding.get("language", "-")
-            category = finding.get("category", "")
-            issue = finding.get("issue_detected", "")
-            proposed_change = finding.get("proposed_change", "")
+        if not findings:
+            return rows
 
-            rows.append([
-                str(page_number),
-                str(language),
-                str(category),
-                str(issue),
-                str(proposed_change),
-            ])
+        # Partition deterministic vs others so the sheet shows deterministic
+        # findings separately for easy review.
+        det = [f for f in findings if f.get("source") == "deterministic"]
+        other = [f for f in findings if f.get("source") != "deterministic"]
+
+        def to_rows(items: List[Dict[str, Any]]) -> List[List[str]]:
+            items_sorted = sorted(items or [], key=lambda x: (x.get("page_number") or 0))
+            out: List[List[str]] = []
+            for finding in items_sorted:
+                page_number = finding.get("page_number", "-")
+                language = finding.get("language", "-")
+                category = finding.get("category", "")
+                issue = finding.get("issue_detected", "")
+                proposed_change = finding.get("proposed_change", "")
+                out.append([
+                    str(page_number),
+                    str(language),
+                    str(category),
+                    str(issue),
+                    str(proposed_change),
+                ])
+            return out
+
+        if det:
+            # Header row to mark deterministic findings block (Option B)
+            rows.append(["", "", "--- Deterministic Findings ---", "", ""])
+            rows.extend(to_rows(det))
+            # Blank separator row
+            rows.append(["", "", "", "", ""])
+
+        if other:
+            rows.append(["", "", "--- LLM Findings ---", "", ""])
+            rows.extend(to_rows(other))
+
         return rows

@@ -7,15 +7,38 @@ from app.models import ParsedDocument
 def run_deterministic_checks(
     report: ParsedDocument,
     benchmark: Optional[ParsedDocument] = None,
+    glossary_rules: Optional[List[Dict[str, str]]] = None,
     style_rules: Optional[List[Dict[str, str]]] = None,
 ) -> List[Dict[str, Any]]:
     findings: List[Dict[str, Any]] = []
 
-    # Deterministic checks removed. All formatting, capitalization, age labels,
-    # methodology consistency, benchmark alignment, and language purity checks
-    # are now performed by the LLM review with better context awareness.
-    #
-    # Only reference-based checks remain (glossary & style guide rules).
+    # Restoring deterministic checks for structured, exact rules that are hard
+    # for an LLM to guarantee (formatting, numeric consistency, glossary
+    # membership, language purity and methodology alignment). Spell-checking
+    # (previously disabled) will remain off due to false-positive noise.
+
+    findings.extend(_check_age_labels(report))
+    findings.extend(_check_methodology_consistency(report))
+    findings.extend(_check_sentence_capitalization(report))
+
+    # Language purity checks for French (repetition, English tokens in French
+    # content, etc.)
+    if report.metadata.language.lower() == "french":
+        findings.extend(_check_french_language_purity(report))
+
+    # Benchmark alignment (percentages, page counts) when a benchmark is
+    # provided.
+    if benchmark is not None:
+        findings.extend(_check_benchmark_alignment(report, benchmark))
+
+    # Re-introduce glossary-based checks when rules are supplied.
+    # Split into two deterministic rules:
+    # 1) Check terms used in the report against the canonical term (column 1).
+    # 2) Check glossary/definitions pages in the report against the canonical
+    #    definition (column 2).
+    if glossary_rules:
+        findings.extend(_check_reference_terms(report, glossary_rules))
+        findings.extend(_check_glossary_definition_pages(report, glossary_rules))
 
     if style_rules:
         findings.extend(_check_reference_style_rules(report, style_rules))
@@ -23,13 +46,21 @@ def run_deterministic_checks(
     return findings
 
 
-def _issue(page_number: int, language: str, issue_detected: str, proposed_change: str, category: str = "") -> Dict[str, Any]:
+def _issue(
+    page_number: int,
+    language: str,
+    issue_detected: str,
+    proposed_change: str,
+    category: str = "",
+    source: str = "deterministic",
+) -> Dict[str, Any]:
     return {
         "page_number": int(page_number),
         "language": language,
         "category": category,
         "issue_detected": issue_detected,
         "proposed_change": proposed_change,
+        "source": source,
     }
 
 
@@ -206,14 +237,107 @@ def _check_sentence_capitalization(report: ParsedDocument) -> List[Dict[str, Any
 def _check_reference_glossary(
     report: ParsedDocument, glossary_rules: List[Dict[str, str]]
 ) -> List[Dict[str, Any]]:
-    """Apply deterministic source->target terminology checks from reference glossary files."""
+    """Legacy combined glossary check (kept for compatibility)."""
+    # Note: functionality split into two separate checks:
+    # - _check_reference_terms
+    # - _check_glossary_definition_pages
+    return []
+
+
+def _is_glossary_page(text: str) -> bool:
+    if not text:
+        return False
+    lower = text.lower()
+    return bool(re.search(r"\b(glossaire|glossary|d\u00e9finitions|definitions|liste des d\u00e9finitions|list of definitions)\b", lower))
+
+
+def _check_reference_terms(report: ParsedDocument, glossary_rules: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+    """Check that terms used in the report match the canonical term (column 1).
+
+    Flags a finding when the report contains a case-insensitive match of the
+    term but does not contain the exact (case-sensitive) canonical term.
+    """
     findings: List[Dict[str, Any]] = []
     lang = report.metadata.language
     report_lang = (lang or "").strip().lower()
 
     for page in report.pages:
-        text = page.text or ""
-        if not text.strip():
+        raw_text = page.text or ""
+        text = _normalize_text(raw_text)
+        if not text:
+            continue
+
+        def _normalize_text(s: str) -> str:
+            # Normalize unicode (NFC) and convert NBSP to normal space, collapse multiple spaces
+            if not s:
+                return ""
+            n = unicodedata.normalize("NFC", s)
+            n = n.replace("\u00A0", " ")
+            n = re.sub(r"\s+", " ", n)
+            return n.strip()
+
+        page_hits = 0
+        for rule in glossary_rules:
+            source = (rule.get("source") or "").strip()
+            rule_lang = (rule.get("language") or "Any").strip().lower()
+            origin = (rule.get("origin") or "reference glossary").strip()
+
+            if not source:
+                continue
+            if rule_lang == "french" and report_lang != "french":
+                continue
+            if rule_lang == "english" and report_lang != "english":
+                continue
+
+            source_norm = _normalize_text(source)
+            if not source_norm:
+                continue
+
+            # Build patterns from normalized source and allow flexible whitespace
+            esc = re.escape(source_norm).replace(r"\ ", r"\s+")
+            exact_pattern = re.compile(rf"\b{esc}\b")
+            ci_pattern = re.compile(rf"\b{esc}\b", flags=re.IGNORECASE)
+
+            ci_found = bool(ci_pattern.search(text))
+            exact_found = bool(exact_pattern.search(text))
+
+            # If some variant exists but exact canonical term is missing -> discrepancy
+            if ci_found and not exact_found:
+                findings.append(
+                    _issue(
+                        page.page_number,
+                        lang,
+                        f"Term usage mismatch: found variant of '{source}' but not the canonical form ({origin}).",
+                        f"Use the exact canonical term: '{source}'.",
+                        category="Terminology",
+                    )
+                )
+                page_hits += 1
+
+            if page_hits >= 8:
+                break
+
+    return findings
+
+
+def _check_glossary_definition_pages(report: ParsedDocument, glossary_rules: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+    """Check glossary/definition pages in the report against canonical definitions (column 2).
+
+    For each page that looks like a glossary/definitions page, if it contains
+    the canonical term (column 1) but does not contain the exact canonical
+    definition (column 2) as a case-sensitive substring, emit a finding.
+    """
+    findings: List[Dict[str, Any]] = []
+    lang = report.metadata.language
+    report_lang = (lang or "").strip().lower()
+
+    for page in report.pages:
+        raw_text = page.text or ""
+        text = unicodedata.normalize("NFC", raw_text).replace("\u00A0", " ")
+        text = re.sub(r"\s+", " ", text).strip()
+        if not text:
+            continue
+        if not _is_glossary_page(text):
             continue
 
         page_hits = 0
@@ -225,22 +349,29 @@ def _check_reference_glossary(
 
             if not source or not target:
                 continue
-
             if rule_lang == "french" and report_lang != "french":
                 continue
             if rule_lang == "english" and report_lang != "english":
                 continue
 
-            source_pattern = re.compile(rf"\b{re.escape(source)}\b", flags=re.IGNORECASE)
-            target_pattern = re.compile(rf"\b{re.escape(target)}\b", flags=re.IGNORECASE)
+            # Normalize rule text for matching
+            source_norm = unicodedata.normalize("NFC", source).replace("\u00A0", " ")
+            source_norm = re.sub(r"\s+", " ", source_norm).strip()
+            target_norm = unicodedata.normalize("NFC", target).replace("\u00A0", " ") if target else ""
+            target_norm = re.sub(r"\s+", " ", target_norm).strip() if target_norm else ""
 
-            if source_pattern.search(text) and not target_pattern.search(text):
+            # If term appears on glossary page but canonical definition is missing
+            sp_esc = re.escape(source_norm).replace(r"\\ ", r"\\s+")
+            source_pattern = re.compile(rf"\b{sp_esc}\b")
+            target_pattern = re.compile(re.escape(target_norm)) if target_norm else None
+
+            if source_pattern.search(text) and not (target_pattern and target_pattern.search(text)):
                 findings.append(
                     _issue(
                         page.page_number,
                         lang,
-                        f"Reference terminology mismatch: found '{source}' without preferred term '{target}' ({origin}).",
-                        f"Replace '{source}' with preferred terminology '{target}'.",
+                        f"Glossary definition mismatch for '{source}': page does not contain the canonical definition ({origin}).",
+                        f"Replace glossary definition with exact canonical text: '{target}'.",
                         category="Terminology",
                     )
                 )

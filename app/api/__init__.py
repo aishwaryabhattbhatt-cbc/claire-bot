@@ -8,7 +8,7 @@ from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Query, Bod
 from fastapi.responses import StreamingResponse
 
 from app.schemas import FileUploadResponse, InstructionsResponse
-from app.services import generate_job_id, save_uploaded_file
+from app.services import generate_job_id, save_uploaded_file, save_uploaded_file_stream
 from app.services.parser_service import DocumentParserService
 from app.services.llm_service import review_with_llm
 from app.services.sheets_service import GoogleSheetsWriterService
@@ -205,9 +205,8 @@ async def upload_report(
     _timeline_add_substep(timeline, "phase_1", "request_validation", "Validate request", "success")
     logger.info(f"[{job_id}] Phase 1: Request validated and report received.")
 
-    # Save report file
-    report_content = await file.read()
-    report_path = save_uploaded_file(report_content, file.filename, job_id, "report")
+    # Save report file (streamed to disk to avoid reading entire upload into memory)
+    report_path = await save_uploaded_file_stream(file, file.filename, job_id, "report")
     _timeline_add_substep(timeline, "phase_1", "save_report", "Save report file", "success")
     logger.info(f"[{job_id}] Report file saved. Parsing document...")
 
@@ -241,10 +240,7 @@ async def upload_report(
                 detail=f"Benchmark file type invalid. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
             )
 
-        benchmark_content = await benchmark_file.read()
-        benchmark_path = save_uploaded_file(
-            benchmark_content, benchmark_file.filename, job_id, "benchmark"
-        )
+        benchmark_path = await save_uploaded_file_stream(benchmark_file, benchmark_file.filename, job_id, "benchmark")
         _timeline_add_substep(timeline, "phase_2", "save_benchmark", "Save benchmark file", "success")
 
         # Parse benchmark file
@@ -482,13 +478,15 @@ async def upload_report_stream(
     if comparison_mode and not benchmark_file:
         raise HTTPException(status_code=400, detail="Benchmark file required when comparison_mode is True")
 
-    # Read file bytes before entering the generator (UploadFile is not reusable)
-    report_content = await file.read()
-    benchmark_content = await benchmark_file.read() if benchmark_file else None
+    # Create a single job_id and save uploaded files to disk before entering the generator
+    job_id = generate_job_id()
+    report_path = await save_uploaded_file_stream(file, file.filename, job_id, "report")
+    benchmark_path = None
+    if benchmark_file:
+        benchmark_path = await save_uploaded_file_stream(benchmark_file, benchmark_file.filename, job_id, "benchmark")
 
     async def generate() -> AsyncGenerator[str, None]:
         loop = asyncio.get_event_loop()
-        job_id = generate_job_id()
         timeline = _new_timeline(comparison_mode)
 
         async def emit_phase(phase_id: str, phase_name: str, status: str, message: Optional[str] = None) -> None:
@@ -544,9 +542,7 @@ async def upload_report_stream(
             async for evt in flush_sse():
                 yield evt
             yield _sse("progress", {"message": "Phase 1: Receiving and saving files..."})
-            report_path = await loop.run_in_executor(
-                None, save_uploaded_file, report_content, file.filename, job_id, "report"
-            )
+            # report was already saved to disk before starting the generator
             await emit_substep("phase_1", "Intake & Parse Report", "save_report", "Save report file", "success")
             async for evt in flush_sse():
                 yield evt
@@ -577,14 +573,12 @@ async def upload_report_stream(
             yield _sse("progress", {"message": f"Phase 1: Report parsed — {parsed_report.metadata.total_pages} pages found."})
 
             parsed_benchmark = None
-            if comparison_mode and benchmark_content and benchmark_file:
+            if comparison_mode and benchmark_path and benchmark_file:
                 await emit_phase("phase_2", "Benchmark Parse", "running", "Parsing benchmark document")
                 async for evt in flush_sse():
                     yield evt
                 yield _sse("progress", {"message": "Phase 2: Parsing benchmark document..."})
-                benchmark_path = await loop.run_in_executor(
-                    None, save_uploaded_file, benchmark_content, benchmark_file.filename, job_id, "benchmark"
-                )
+                # benchmark was already saved to disk before starting the generator
                 await emit_substep("phase_2", "Benchmark Parse", "save_benchmark", "Save benchmark file", "success")
                 async for evt in flush_sse():
                     yield evt

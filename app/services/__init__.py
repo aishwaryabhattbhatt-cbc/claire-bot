@@ -38,6 +38,38 @@ def save_uploaded_file(file_content: bytes, original_filename: str, job_id: str,
     return str(file_path)
 
 
+async def save_uploaded_file_stream(upload_file, original_filename: str, job_id: str, file_type: str) -> str:
+    """
+    Save an UploadFile to disk by streaming in chunks (async).
+
+    Args:
+        upload_file: FastAPI UploadFile instance
+        original_filename: Original file name
+        job_id: Unique job ID
+        file_type: 'report' or 'benchmark'
+
+    Returns:
+        Path to saved file
+    """
+    upload_path = Path(settings.upload_dir) / job_id
+    upload_path.mkdir(parents=True, exist_ok=True)
+
+    # Preserve original extension
+    file_ext = Path(original_filename).suffix
+    saved_filename = f"{file_type}{file_ext}"
+    file_path = upload_path / saved_filename
+
+    # Use small chunks to avoid large memory usage
+    with open(file_path, "wb") as f:
+        while True:
+            chunk = await upload_file.read(1024 * 1024)
+            if not chunk:
+                break
+            f.write(chunk)
+
+    return str(file_path)
+
+
 def get_job_directory(job_id: str) -> Path:
     """Get job directory path"""
     return Path(settings.upload_dir) / job_id

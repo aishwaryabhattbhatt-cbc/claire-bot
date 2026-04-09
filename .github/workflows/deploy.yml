@@ -1,0 +1,230 @@
+name: Preview & Production Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - "**"
+  pull_request:
+    types: [opened, synchronize, reopened]
+  delete:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  REGISTRY: gcr.io
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      branch_name: ${{ steps.get-branch.outputs.branch_name }}
+      safe_branch: ${{ steps.get-branch.outputs.safe_branch }}
+      is_main: ${{ steps.get-branch.outputs.is_main }}
+      is_pr: ${{ steps.get-branch.outputs.is_pr }}
+      pr_number: ${{ steps.get-branch.outputs.pr_number }}
+    steps:
+      - name: Get branch info
+        id: get-branch
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BRANCH="${{ github.head_ref }}"
+            IS_PR="true"
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          else
+            BRANCH="${{ github.ref_name }}"
+            IS_PR="false"
+            PR_NUMBER=""
+          fi
+          
+          IS_MAIN=$([[ "$BRANCH" == "main" ]] && echo "true" || echo "false")
+          SAFE_BRANCH=$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | cut -c1-40)
+          
+          echo "branch_name=$BRANCH" >> $GITHUB_OUTPUT
+          echo "safe_branch=$SAFE_BRANCH" >> $GITHUB_OUTPUT
+          echo "is_main=$IS_MAIN" >> $GITHUB_OUTPUT
+          echo "is_pr=$IS_PR" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+  build-and-deploy:
+    needs: setup
+    runs-on: ubuntu-latest
+    if: github.event_name != 'delete'
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: |
+          gcloud auth configure-docker
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/clairebot:latest \
+            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/clairebot:${{ github.sha }} \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/clairebot:latest
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/clairebot:${{ github.sha }}
+
+      - name: Deploy to preview service
+        if: needs.setup.outputs.is_main == 'false'
+        id: deploy-preview
+        run: |
+          SERVICE_NAME="clairebot-preview-${{ needs.setup.outputs.safe_branch }}"
+          echo "Deploying preview service: $SERVICE_NAME"
+          
+          gcloud run deploy $SERVICE_NAME \
+            --image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/clairebot:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --memory=1Gi \
+            --cpu=1 \
+            --timeout=300s \
+            --max-instances=2 \
+            --min-instances=0 \
+            --set-env-vars=APP_ENV=preview,LOG_LEVEL=INFO,LLM_PROVIDER=gemini,GEMINI_MODEL=gemini-2.5-flash,ENABLE_SHEETS_WRITER=false,UPLOAD_DIR=/tmp/uploads,PROCESSED_DIR=/tmp/processed \
+            --set-secrets=GOOGLE_API_KEY=GOOGLE_API_KEY:latest \
+            --labels=branch=${{ needs.setup.outputs.safe_branch }},commit=${{ github.sha }},created-by=github-actions \
+            --project=${{ env.PROJECT_ID }}
+          
+          PREVIEW_URL=$(gcloud run services describe $SERVICE_NAME \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)' \
+            --project=${{ env.PROJECT_ID }})
+          
+          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+          echo "service_name=$SERVICE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Deploy to production
+        if: needs.setup.outputs.is_main == 'true'
+        run: |
+          echo "Deploying to production service: clairebot"
+          
+          gcloud run deploy clairebot \
+            --image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/clairebot:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --memory=1Gi \
+            --cpu=1 \
+            --timeout=300s \
+            --max-instances=2 \
+            --min-instances=0 \
+            --set-env-vars=APP_ENV=production,LOG_LEVEL=INFO,LLM_PROVIDER=gemini,GEMINI_MODEL=gemini-2.5-flash,ENABLE_SHEETS_WRITER=false,UPLOAD_DIR=/tmp/uploads,PROCESSED_DIR=/tmp/processed \
+            --set-secrets=GOOGLE_API_KEY=GOOGLE_API_KEY:latest \
+            --labels=branch=main,commit=${{ github.sha }},created-by=github-actions \
+            --project=${{ env.PROJECT_ID }}
+          
+          echo "✅ Production deployment complete"
+
+      - name: Post preview URL to PR
+        if: needs.setup.outputs.is_pr == 'true' && needs.setup.outputs.is_main == 'false'
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.deploy-preview.outputs.preview_url }}
+          SERVICE_NAME: ${{ steps.deploy-preview.outputs.service_name }}
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH_NAME: ${{ needs.setup.outputs.branch_name }}
+        with:
+          script: |
+            const serviceUrl = process.env.PREVIEW_URL;
+            const serviceName = process.env.SERVICE_NAME;
+            const commitSha = process.env.COMMIT_SHA.substring(0, 7);
+            const branchName = process.env.BRANCH_NAME;
+            
+            const comment = [
+              '## 🚀 Preview Deployment Ready',
+              '',
+              'Your preview service is now live! Test your changes before merging:',
+              '',
+              `**Preview URL:** [${serviceUrl}](${serviceUrl})`,
+              '',
+              `**Service Name:** \`${serviceName}\``,
+              '',
+              `**Branch:** \`${branchName}\``,
+              '',
+              `**Commit:** \`${commitSha}\``,
+              '',
+              'The preview service will be automatically deleted when this branch is closed or merged.',
+              '',
+              '---',
+              '',
+              '**How to test:**',
+              '1. Visit the preview URL above',
+              '2. Upload a test document and verify your changes',
+              '3. Let us know if everything looks good!'
+            ].join('\n');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Update PR status
+        if: needs.setup.outputs.is_pr == 'true' && needs.setup.outputs.is_main == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deploymentUrl = "${{ steps.deploy-preview.outputs.preview_url }}";
+            
+            github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: context.payload.pull_request?.id || 0,
+              state: 'success',
+              environment_url: deploymentUrl,
+              description: 'Preview deployment successful'
+            });
+
+  cleanup:
+    if: github.event_name == 'delete'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Delete preview service
+        run: |
+          DELETED_BRANCH="${{ github.event.ref }}"
+          SAFE_BRANCH=$(echo "$DELETED_BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | cut -c1-40)
+          SERVICE_NAME="clairebot-preview-${SAFE_BRANCH}"
+          
+          echo "Cleaning up preview service: $SERVICE_NAME"
+          
+          gcloud run services delete $SERVICE_NAME \
+            --region=us-central1 \
+            --quiet \
+            --project=${{ env.PROJECT_ID }} || echo "Service $SERVICE_NAME not found or already deleted"
+          
+          echo "✅ Preview service cleanup complete"

@@ -566,14 +566,30 @@
         }
         .instructions-textarea {
             width: 100%;
-            min-height: 320px;
-            border: none;
+            min-height: 220px;
+            border: 1px solid #d1d5db;
             border-radius: 8px;
             padding: 10px;
             font-size: 13px;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
             resize: vertical;
-            background: #f8fafc;
+            background: #fff;
+        }
+        .instructions-accordion {
+            margin-bottom: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            background: #f9fafb;
+            padding: 8px 10px;
+        }
+        .instructions-accordion summary {
+            cursor: pointer;
+            font-weight: 700;
+            color: #111827;
+            padding: 6px 2px;
+        }
+        .instructions-accordion-content {
+            margin-top: 8px;
         }
         .modal-actions {
             margin-top: 10px;
@@ -756,6 +772,21 @@
                             </div>
                         </div>
 
+                        <details class="instructions-accordion" id="reviewInstructionsAccordion">
+                            <summary>Review Instructions (selected mode)</summary>
+                            <div class="instructions-accordion-content">
+                                <label for="selectedInstructionsTextarea" id="selectedInstructionsLabel">French Review Instructions</label>
+                                <div class="file-note" id="selectedInstructionsSource">Source: default</div>
+                                <textarea class="instructions-textarea" id="selectedInstructionsTextarea" placeholder="Loading instructions..."></textarea>
+                                <div class="modal-actions">
+                                    <button class="secondary-btn" id="discardInstructionsBtn" type="button">Discard</button>
+                                    <button class="secondary-btn" id="resetInstructionsBtn" type="button">Reset selected mode</button>
+                                    <button class="secondary-btn" id="saveInstructionsBtn" type="button">Save</button>
+                                </div>
+                                <div class="file-note" id="instructionsSaveStatus">No local changes.</div>
+                            </div>
+                        </details>
+
                         <div class="form-group">
                             <label for="reportFile" id="reportFileLabel">French Report File (PDF, PPTX, DOCX)</label>
                             <input type="file" id="reportFile" accept=".pdf,.pptx,.docx,.doc" required>
@@ -796,9 +827,7 @@
             <aside class="drawer open" id="rightDrawer">
             <div class="drawer-nav">
                 <button class="sidebar-btn active" id="navLogsBtn" type="button" title="Backend Logs" aria-label="Backend Logs"><span class="label">Backend Logs</span></button>
-                <button class="sidebar-btn" id="navInstructionsBtn" type="button" title="Instructions" aria-label="Instructions"><span class="label">Instructions</span></button>
                 <button class="sidebar-btn" id="navReferencesBtn" type="button" title="Reference Documents" aria-label="Reference Documents"><span class="label">References</span></button>
-                <button class="sidebar-btn" id="navHowItWorksBtn" type="button" title="How it works" aria-label="How it works"><span class="label">How it works</span></button>
             </div>
             <div class="drawer-header">
                 <div class="drawer-title" id="drawerTitle">Backend Activity</div>
@@ -806,39 +835,6 @@
 
             <div class="drawer-section active" id="drawerLogs">
                 <ul class="status-list" id="statusList"></ul>
-            </div>
-
-            <div class="drawer-section" id="drawerInstructions">
-                <div class="tab-nav">
-                    <button class="tab-btn active" id="tabComparisonBtn" type="button">Comparison</button>
-                    <button class="tab-btn" id="tabEnglishBtn" type="button">English Review</button>
-                    <button class="tab-btn" id="tabFrenchBtn" type="button">French Review</button>
-                </div>
-
-                <div class="tab-panel active" id="tabComparisonPanel">
-                    <label for="englishInstructionsTextarea">Comparison Instructions</label>
-                    <div class="file-note" id="comparisonInstructionsSource">Source: default</div>
-                    <textarea class="instructions-textarea" id="englishInstructionsTextarea" placeholder="Loading comparison instructions..."></textarea>
-                </div>
-
-                <div class="tab-panel" id="tabFrenchPanel">
-                    <label for="frenchInstructionsTextarea">French Review Instructions</label>
-                    <div class="file-note" id="frenchInstructionsSource">Source: default</div>
-                    <textarea class="instructions-textarea" id="frenchInstructionsTextarea" placeholder="Loading French review instructions..."></textarea>
-                </div>
-
-                <div class="tab-panel" id="tabEnglishPanel">
-                    <label for="englishReviewInstructionsTextarea">English Review Instructions</label>
-                    <div class="file-note" id="englishReviewInstructionsSource">Source: default</div>
-                    <textarea class="instructions-textarea" id="englishReviewInstructionsTextarea" placeholder="Loading English review instructions..."></textarea>
-                </div>
-
-                <div class="modal-actions">
-                    <button class="secondary-btn" id="discardInstructionsBtn" type="button">Discard</button>
-                    <button class="secondary-btn" id="resetInstructionsBtn" type="button">Reset current tab</button>
-                    <button class="secondary-btn" id="saveInstructionsBtn" type="button">Save</button>
-                </div>
-                <div class="file-note" id="instructionsSaveStatus">No local changes.</div>
             </div>
 
             <div class="drawer-section" id="drawerFeedback">
@@ -882,15 +878,6 @@
                 </div>
             </div>
             
-            <div class="drawer-section" id="drawerHowItWorks">
-                <div class="drawer-header">
-                    <div class="drawer-title">How the Rule Engine Works</div>
-                </div>
-                <div class="reference-block" style="margin-top: 10px;">
-                    <h4>Rule Engine Explanation</h4>
-                    <pre id="ruleEngineDocPreview" style="white-space: pre-wrap;">Loading...</pre>
-                </div>
-            </div>
             </aside>
         </div>
     </div>
@@ -904,28 +891,15 @@
         const submitBtn = document.getElementById('submitBtn');
         const statusList = document.getElementById('statusList');
         const navLogsBtn = document.getElementById('navLogsBtn');
-        const navInstructionsBtn = document.getElementById('navInstructionsBtn');
         const navReferencesBtn = document.getElementById('navReferencesBtn');
-        const navHowItWorksBtn = document.getElementById('navHowItWorksBtn');
         const drawerTitle = document.getElementById('drawerTitle');
         const drawerLogs = document.getElementById('drawerLogs');
-        const drawerInstructions = document.getElementById('drawerInstructions');
         const drawerFeedback = document.getElementById('drawerFeedback');
         const drawerReferences = document.getElementById('drawerReferences');
-        const drawerHowItWorks = document.getElementById('drawerHowItWorks');
-        const tabComparisonBtn = document.getElementById('tabComparisonBtn');
-        const tabEnglishBtn = document.getElementById('tabEnglishBtn');
-        const tabFrenchBtn = document.getElementById('tabFrenchBtn');
-        const tabComparisonPanel = document.getElementById('tabComparisonPanel');
-        const tabEnglishPanel = document.getElementById('tabEnglishPanel');
-        const tabFrenchPanel = document.getElementById('tabFrenchPanel');
         const downloadCsvBtn = document.getElementById('downloadCsvBtn');
-        const englishInstructionsTextarea = document.getElementById('englishInstructionsTextarea');
-        const englishReviewInstructionsTextarea = document.getElementById('englishReviewInstructionsTextarea');
-        const frenchInstructionsTextarea = document.getElementById('frenchInstructionsTextarea');
-        const comparisonInstructionsSource = document.getElementById('comparisonInstructionsSource');
-        const englishReviewInstructionsSource = document.getElementById('englishReviewInstructionsSource');
-        const frenchInstructionsSource = document.getElementById('frenchInstructionsSource');
+        const selectedInstructionsTextarea = document.getElementById('selectedInstructionsTextarea');
+        const selectedInstructionsLabel = document.getElementById('selectedInstructionsLabel');
+        const selectedInstructionsSource = document.getElementById('selectedInstructionsSource');
         const saveInstructionsBtn = document.getElementById('saveInstructionsBtn');
         const resetInstructionsBtn = document.getElementById('resetInstructionsBtn');
         const discardInstructionsBtn = document.getElementById('discardInstructionsBtn');
@@ -948,54 +922,62 @@
             english_source: 'default',
             french_source: 'default',
         };
+        let draftInstructions = {
+            comparison: '',
+            english: '',
+            french: '',
+        };
 
-        function setInstructionsTab(tabName) {
-            const isComparison = tabName === 'comparison';
-            const isEnglish = tabName === 'english';
-            const isFrench = tabName === 'french';
+        function mapPromptModeToInstructionMode(promptMode) {
+            if (promptMode === 'comparison') return 'comparison';
+            if (promptMode === 'english_review') return 'english';
+            return 'french';
+        }
 
-            tabComparisonBtn.classList.toggle('active', isComparison);
-            tabEnglishBtn.classList.toggle('active', isEnglish);
-            tabFrenchBtn.classList.toggle('active', isFrench);
+        function getCurrentInstructionMode() {
+            const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'french_review';
+            return mapPromptModeToInstructionMode(promptMode);
+        }
 
-            tabComparisonPanel.classList.toggle('active', isComparison);
-            tabEnglishPanel.classList.toggle('active', isEnglish);
-            tabFrenchPanel.classList.toggle('active', isFrench);
+        function syncSelectedInstructionsEditor() {
+            const mode = getCurrentInstructionMode();
+            const modeLabel = mode === 'comparison'
+                ? 'Comparison'
+                : mode === 'english'
+                    ? 'English Review'
+                    : 'French Review';
+            const source = mode === 'comparison'
+                ? originalInstructions.comparison_source
+                : mode === 'english'
+                    ? originalInstructions.english_source
+                    : originalInstructions.french_source;
+            const value = draftInstructions[mode] || '';
+
+            selectedInstructionsLabel.textContent = `${modeLabel} Instructions`;
+            selectedInstructionsSource.textContent = `Source: ${source || 'default'}`;
+            selectedInstructionsTextarea.value = value;
         }
 
         function setActiveSidebar(button) {
-            [navLogsBtn, navInstructionsBtn, navReferencesBtn, navHowItWorksBtn].forEach((btn) => {
+            [navLogsBtn, navReferencesBtn].forEach((btn) => {
                 btn.classList.toggle('active', btn === button);
             });
         }
 
         function openDrawer(sectionName) {
             drawerLogs.classList.toggle('active', sectionName === 'logs');
-            drawerInstructions.classList.toggle('active', sectionName === 'instructions');
             drawerFeedback.classList.toggle('active', sectionName === 'feedback');
             drawerReferences.classList.toggle('active', sectionName === 'references');
-            drawerHowItWorks.classList.toggle('active', sectionName === 'howitworks');
             drawerTitle.textContent = sectionName === 'logs'
                 ? 'Backend Activity'
-                : sectionName === 'instructions'
-                    ? 'Review Instructions'
-                    : sectionName === 'feedback'
+                : sectionName === 'feedback'
                         ? 'Feedback Registry'
-                    : sectionName === 'references'
-                        ? 'Reference Documents'
-                        : 'How it works';
+                    : 'Reference Documents';
         }
 
         navLogsBtn.addEventListener('click', () => {
             setActiveSidebar(navLogsBtn);
             openDrawer('logs');
-        });
-
-        navInstructionsBtn.addEventListener('click', async () => {
-            setActiveSidebar(navInstructionsBtn);
-            openDrawer('instructions');
-            setInstructionsTab('comparison');
-            await loadInstructions();
         });
 
         navReferencesBtn.addEventListener('click', async () => {
@@ -1004,43 +986,37 @@
             await loadReferenceDocuments();
         });
 
-        navHowItWorksBtn.addEventListener('click', async () => {
-            setActiveSidebar(navHowItWorksBtn);
-            openDrawer('howitworks');
-            await loadRuleEngineDoc();
+        selectedInstructionsTextarea.addEventListener('input', () => {
+            const mode = getCurrentInstructionMode();
+            draftInstructions[mode] = selectedInstructionsTextarea.value;
+            updateInstructionsDirtyState();
         });
-
-        tabComparisonBtn.addEventListener('click', () => setInstructionsTab('comparison'));
-        tabEnglishBtn.addEventListener('click', () => setInstructionsTab('english'));
-        tabFrenchBtn.addEventListener('click', () => setInstructionsTab('french'));
-
-        englishInstructionsTextarea.addEventListener('input', updateInstructionsDirtyState);
-        englishReviewInstructionsTextarea.addEventListener('input', updateInstructionsDirtyState);
-        frenchInstructionsTextarea.addEventListener('input', updateInstructionsDirtyState);
 
         saveInstructionsBtn.addEventListener('click', async () => {
             await saveInstructions();
         });
 
         discardInstructionsBtn.addEventListener('click', () => {
-            englishInstructionsTextarea.value = originalInstructions.comparison;
-            englishReviewInstructionsTextarea.value = originalInstructions.english;
-            frenchInstructionsTextarea.value = originalInstructions.french;
+            draftInstructions = {
+                comparison: originalInstructions.comparison,
+                english: originalInstructions.english,
+                french: originalInstructions.french,
+            };
+            syncSelectedInstructionsEditor();
             updateInstructionsDirtyState();
             addStatus('Instruction changes discarded.');
         });
 
         resetInstructionsBtn.addEventListener('click', async () => {
-            const activeMode = tabComparisonPanel.classList.contains('active')
-                ? 'comparison'
-                : tabEnglishPanel.classList.contains('active')
-                    ? 'english'
-                    : 'french';
-            await resetInstructions(activeMode);
+            await resetInstructions(getCurrentInstructionMode());
         });
 
         document.querySelectorAll('input[name="promptMode"]').forEach((radio) => {
-            radio.addEventListener('change', updateFileInputsByPromptMode);
+            radio.addEventListener('change', () => {
+                updateFileInputsByPromptMode();
+                syncSelectedInstructionsEditor();
+                updateInstructionsDirtyState();
+            });
         });
 
 
@@ -1572,18 +1548,16 @@
 
         function updateInstructionsDirtyState() {
             const dirty =
-                englishInstructionsTextarea.value !== originalInstructions.comparison ||
-                englishReviewInstructionsTextarea.value !== originalInstructions.english ||
-                frenchInstructionsTextarea.value !== originalInstructions.french;
+                (draftInstructions.comparison || '') !== (originalInstructions.comparison || '') ||
+                (draftInstructions.english || '') !== (originalInstructions.english || '') ||
+                (draftInstructions.french || '') !== (originalInstructions.french || '');
 
             instructionsSaveStatus.textContent = dirty ? 'Unsaved changes.' : 'No local changes.';
             instructionsSaveStatus.style.color = dirty ? '#b45309' : '#4b5563';
         }
 
         async function loadInstructions() {
-            englishInstructionsTextarea.value = 'Loading...';
-            englishReviewInstructionsTextarea.value = 'Loading...';
-            frenchInstructionsTextarea.value = 'Loading...';
+            selectedInstructionsTextarea.value = 'Loading...';
             instructionsSaveStatus.textContent = 'Loading...';
             instructionsSaveStatus.style.color = '#4b5563';
             try {
@@ -1600,20 +1574,16 @@
                     english_source: data.english_source || 'default',
                     french_source: data.french_source || 'default',
                 };
-                englishInstructionsTextarea.value = originalInstructions.comparison;
-                englishReviewInstructionsTextarea.value = originalInstructions.english;
-                frenchInstructionsTextarea.value = originalInstructions.french;
-                comparisonInstructionsSource.textContent = `Source: ${originalInstructions.comparison_source}`;
-                englishReviewInstructionsSource.textContent = `Source: ${originalInstructions.english_source}`;
-                frenchInstructionsSource.textContent = `Source: ${originalInstructions.french_source}`;
+                draftInstructions = {
+                    comparison: originalInstructions.comparison,
+                    english: originalInstructions.english,
+                    french: originalInstructions.french,
+                };
+                syncSelectedInstructionsEditor();
                 updateInstructionsDirtyState();
             } catch (error) {
-                englishInstructionsTextarea.value = '';
-                englishReviewInstructionsTextarea.value = '';
-                frenchInstructionsTextarea.value = '';
-                comparisonInstructionsSource.textContent = 'Source: unknown';
-                englishReviewInstructionsSource.textContent = 'Source: unknown';
-                frenchInstructionsSource.textContent = 'Source: unknown';
+                selectedInstructionsTextarea.value = '';
+                selectedInstructionsSource.textContent = 'Source: unknown';
                 instructionsSaveStatus.textContent = 'Failed to load instructions.';
                 instructionsSaveStatus.style.color = '#991b1b';
                 addStatus('Failed to load instructions.');
@@ -1622,9 +1592,9 @@
 
         async function saveInstructions() {
             const payload = {
-                comparison_instructions: englishInstructionsTextarea.value,
-                english_instructions: englishReviewInstructionsTextarea.value,
-                french_instructions: frenchInstructionsTextarea.value,
+                comparison_instructions: draftInstructions.comparison || '',
+                english_instructions: draftInstructions.english || '',
+                french_instructions: draftInstructions.french || '',
             };
 
             saveInstructionsBtn.disabled = true;
@@ -1650,12 +1620,12 @@
                     english_source: data.english_source || 'default',
                     french_source: data.french_source || 'default',
                 };
-                englishInstructionsTextarea.value = originalInstructions.comparison;
-                englishReviewInstructionsTextarea.value = originalInstructions.english;
-                frenchInstructionsTextarea.value = originalInstructions.french;
-                comparisonInstructionsSource.textContent = `Source: ${originalInstructions.comparison_source}`;
-                englishReviewInstructionsSource.textContent = `Source: ${originalInstructions.english_source}`;
-                frenchInstructionsSource.textContent = `Source: ${originalInstructions.french_source}`;
+                draftInstructions = {
+                    comparison: originalInstructions.comparison,
+                    english: originalInstructions.english,
+                    french: originalInstructions.french,
+                };
+                syncSelectedInstructionsEditor();
                 updateInstructionsDirtyState();
                 instructionsSaveStatus.textContent = 'Saved successfully.';
                 instructionsSaveStatus.style.color = '#065f46';
@@ -1691,12 +1661,12 @@
                     english_source: data.english_source || 'default',
                     french_source: data.french_source || 'default',
                 };
-                englishInstructionsTextarea.value = originalInstructions.comparison;
-                englishReviewInstructionsTextarea.value = originalInstructions.english;
-                frenchInstructionsTextarea.value = originalInstructions.french;
-                comparisonInstructionsSource.textContent = `Source: ${originalInstructions.comparison_source}`;
-                englishReviewInstructionsSource.textContent = `Source: ${originalInstructions.english_source}`;
-                frenchInstructionsSource.textContent = `Source: ${originalInstructions.french_source}`;
+                draftInstructions = {
+                    comparison: originalInstructions.comparison,
+                    english: originalInstructions.english,
+                    french: originalInstructions.french,
+                };
+                syncSelectedInstructionsEditor();
                 updateInstructionsDirtyState();
                 instructionsSaveStatus.textContent = `Reset completed for ${mode}.`;
                 instructionsSaveStatus.style.color = '#065f46';
@@ -1738,34 +1708,6 @@
                 logoDocsPreview.textContent = 'Failed to load logo guidelines.';
                 glossaryDocsPreview.textContent = 'Failed to load glossary files.';
                 styleGuideDocsPreview.textContent = 'Failed to load style guide files.';
-            }
-        }
-
-        async function loadRuleEngineDoc() {
-            const preview = document.getElementById('ruleEngineDocPreview');
-            preview.textContent = 'Loading...';
-            const attempts = [
-                '/docs/rule_engine',
-                '/docs/rule_engine?_ts=' + Date.now(),
-            ];
-            try {
-                let lastError = null;
-                for (const url of attempts) {
-                    try {
-                        const res = await fetch(url, { cache: 'no-store' });
-                        const data = await res.json();
-                        if (!res.ok) {
-                            throw new Error(data.detail || 'Failed to load rule engine documentation');
-                        }
-                        preview.textContent = data.content || 'No documentation available.';
-                        return;
-                    } catch (err) {
-                        lastError = err;
-                    }
-                }
-                throw lastError || new Error('Failed to load rule engine documentation');
-            } catch (err) {
-                preview.textContent = `Failed to load documentation: ${err.message || err}`;
             }
         }
 

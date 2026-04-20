@@ -95,21 +95,24 @@ def _resolve_instructions(prompt_mode: str) -> tuple[str, str]:
     learned_sections: list[str] = []
     if false_alarms:
         learned_sections.append(
-            "Known false alarms to avoid:\n" + "\n".join([f"- {line}" for line in false_alarms])
+            "Do NOT flag these known false alarms (skip silently if you see them):\n"
+            + "\n".join([f"- {line}" for line in false_alarms])
         )
     if missed_issues:
         learned_sections.append(
-            "Known missed issues to explicitly check:\n" + "\n".join([f"- {line}" for line in missed_issues])
+            "Known missed issues to explicitly check for:\n"
+            + "\n".join([f"- {line}" for line in missed_issues])
         )
     if corrections:
         learned_sections.append(
-            "Known correction preferences:\n" + "\n".join([f"- {line}" for line in corrections])
+            "Known correction preferences:\n"
+            + "\n".join([f"- {line}" for line in corrections])
         )
 
     learned_block = "\n\n".join(learned_sections)
     combined = (
         f"{base}\n\n"
-        "Structured feedback registry guidance (mode-scoped):\n"
+        "--- Feedback registry guidance (apply strictly) ---\n"
         f"{learned_block}"
     )
     return combined, f"{source}+feedback-registry"
@@ -1002,15 +1005,15 @@ def update_feedback_registry_item(item_id: str, payload: FeedbackRegistryUpdateR
 
 
 @router.delete("/feedback/{item_id}", response_model=FeedbackRegistryItem)
-def disable_feedback_registry_item(
+def delete_feedback_registry_item(
     item_id: str,
     payload: Optional[FeedbackRegistryDisableRequest] = Body(default=None),
 ) -> FeedbackRegistryItem:
     try:
-        disabled = feedback_registry_service.disable_item(item_id, payload.reason if payload else None)
+        deleted = feedback_registry_service.delete_item(item_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    return FeedbackRegistryItem(**disabled)
+    return FeedbackRegistryItem(**deleted)
 
 
 @router.get("/references")

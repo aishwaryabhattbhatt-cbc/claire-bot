@@ -147,6 +147,41 @@
             opacity: 0.65;
             cursor: not-allowed;
         }
+        .table-section {
+            margin-bottom: 16px;
+        }
+        .feedback-type-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .feedback-type-tab {
+            border: none;
+            border-radius: 8px;
+            background: #f3f4f6;
+            color: #374151;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .feedback-type-tab.active {
+            background: #111827;
+            color: #fff;
+        }
+        .tab-panel {
+            display: none;
+        }
+        .tab-panel.active {
+            display: block;
+        }
+        .table-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 8px;
+        }
         .feedback-table-wrap {
             border: 1px solid #e5e7eb;
             border-radius: 8px;
@@ -158,14 +193,17 @@
             border-collapse: collapse;
             table-layout: fixed;
         }
-        .col-type {
-            width: 150px;
+        .col-main {
+            width: 39%;
+        }
+        .col-secondary {
+            width: 39%;
         }
         .col-mode {
-            width: 140px;
+            width: 18%;
         }
         .col-status {
-            width: 110px;
+            width: 8%;
         }
         .col-actions {
             width: 72px;
@@ -210,19 +248,23 @@
             color: #111827;
             white-space: nowrap;
         }
+        .mode-chip input {
+            width: 14px;
+            height: 14px;
+            margin: 0;
+        }
         @media (max-width: 1100px) {
             .feedback-table th,
             .feedback-table td {
                 padding: 6px;
             }
-            .col-type {
-                width: 132px;
+            .col-main,
+            .col-secondary {
+                width: 33%;
             }
-            .col-mode {
-                width: 124px;
-            }
+            .col-mode,
             .col-status {
-                width: 98px;
+                width: 15%;
             }
         }
         @media (max-width: 750px) {
@@ -233,16 +275,11 @@
                 min-width: 750px;
             }
         }
-        .mode-chip input {
-            width: 14px;
-            height: 14px;
-            margin: 0;
-        }
         .feedback-table textarea {
             min-height: 58px;
             resize: vertical;
         }
-        .row-actions {
+        .table-actions {
             margin-top: 12px;
             display: flex;
             justify-content: center;
@@ -285,15 +322,16 @@
 
     <main class="page">
         <h1>Feedback</h1>
-        <p class="subtitle">Use this table to teach ClaireBot what to suppress, what to enforce, and how to phrase expected findings.</p>
+        <p class="subtitle">Use these three tables to add focused feedback for false alarms, missed issues, and corrections.</p>
         <div class="guidance">
             <details class="guidance-accordion" open>
                 <summary>How to enter feedback</summary>
                 <div class="guidance-accordion-content">
                     <ul>
-                        <li>Pick <strong>Type</strong>: <strong>false_alarm</strong> to suppress recurring noise, <strong>missed_issue</strong> to enforce checks that were missed, or <strong>correction</strong> to improve finding wording.</li>
-                        <li>Set <strong>Mode</strong> using the checkboxes to scope the rule to one or more flows: French Review, English Review, and/or Comparison.</li>
-                        <li>Write a clear <strong>Issue Pattern</strong> and optional <strong>Expected Finding</strong>; keep entries specific and reusable.</li>
+                        <li><strong>False Alarm</strong>: paste the false finding from CSV output and add a short explanation.</li>
+                        <li><strong>Missed Issue</strong>: describe what issue was missed and the expected finding text.</li>
+                        <li><strong>Correction</strong>: paste wrong finding text and the corrected finding text.</li>
+                        <li>Use <strong>Mode</strong> and <strong>Status</strong> controls in each row to scope and activate/deactivate entries.</li>
                     </ul>
                 </div>
             </details>
@@ -314,39 +352,120 @@
             <button class="save-btn" id="saveFeedbackBtn" type="button">Save</button>
         </div>
 
-        <div class="feedback-table-wrap">
-            <table class="feedback-table" id="feedbackRegistryTable">
-                <colgroup>
-                    <col class="col-type">
-                    <col class="col-mode">
-                    <col>
-                    <col>
-                    <col class="col-status">
-                    <col class="col-actions">
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Mode</th>
-                        <th>Issue Pattern</th>
-                        <th>Expected Finding</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="feedbackRegistryTableBody"></tbody>
-            </table>
+        <div class="feedback-type-tabs" id="feedbackTypeTabs">
+            <button type="button" class="feedback-type-tab active" data-type="false_alarm">False Alarm</button>
+            <button type="button" class="feedback-type-tab" data-type="missed_issue">Missed Issue</button>
+            <button type="button" class="feedback-type-tab" data-type="correction">Correction</button>
         </div>
-        <div class="row-actions">
-            <button class="icon-circle-btn add-btn" id="addFeedbackRowBtn" type="button" aria-label="Add row" title="Add row">+</button>
+
+        <div class="table-section tab-panel active" data-type="false_alarm">
+            <div class="table-title">False Alarm</div>
+            <div class="feedback-table-wrap">
+                <table class="feedback-table">
+                    <colgroup>
+                        <col class="col-main">
+                        <col class="col-secondary">
+                        <col class="col-mode">
+                        <col class="col-status">
+                        <col class="col-actions">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>False Finding</th>
+                            <th>Short Explanation</th>
+                            <th>Mode</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="falseAlarmTableBody" class="feedback-table-body"></tbody>
+                </table>
+            </div>
+            <div class="table-actions">
+                <button class="icon-circle-btn add-btn" id="addFalseAlarmRowBtn" type="button" aria-label="Add false alarm row" title="Add false alarm row">+</button>
+            </div>
+        </div>
+
+        <div class="table-section tab-panel" data-type="missed_issue">
+            <div class="table-title">Missed Issue</div>
+            <div class="feedback-table-wrap">
+                <table class="feedback-table">
+                    <colgroup>
+                        <col class="col-main">
+                        <col class="col-secondary">
+                        <col class="col-mode">
+                        <col class="col-status">
+                        <col class="col-actions">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Missed Issue</th>
+                            <th>Expected Finding</th>
+                            <th>Mode</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="missedIssueTableBody" class="feedback-table-body"></tbody>
+                </table>
+            </div>
+            <div class="table-actions">
+                <button class="icon-circle-btn add-btn" id="addMissedIssueRowBtn" type="button" aria-label="Add missed issue row" title="Add missed issue row">+</button>
+            </div>
+        </div>
+
+        <div class="table-section tab-panel" data-type="correction">
+            <div class="table-title">Correction</div>
+            <div class="feedback-table-wrap">
+                <table class="feedback-table">
+                    <colgroup>
+                        <col class="col-main">
+                        <col class="col-secondary">
+                        <col class="col-mode">
+                        <col class="col-status">
+                        <col class="col-actions">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Wrong Finding</th>
+                            <th>Corrected Finding</th>
+                            <th>Mode</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="correctionTableBody" class="feedback-table-body"></tbody>
+                </table>
+            </div>
+            <div class="table-actions">
+                <button class="icon-circle-btn add-btn" id="addCorrectionRowBtn" type="button" aria-label="Add correction row" title="Add correction row">+</button>
+            </div>
         </div>
     </main>
 
     <script>
-        const feedbackRegistryTableBody = document.getElementById('feedbackRegistryTableBody');
+        const falseAlarmTableBody = document.getElementById('falseAlarmTableBody');
+        const missedIssueTableBody = document.getElementById('missedIssueTableBody');
+        const correctionTableBody = document.getElementById('correctionTableBody');
         const feedbackRegistryStatus = document.getElementById('feedbackRegistryStatus');
         const saveFeedbackBtn = document.getElementById('saveFeedbackBtn');
-        const addFeedbackRowBtn = document.getElementById('addFeedbackRowBtn');
+        const addFalseAlarmRowBtn = document.getElementById('addFalseAlarmRowBtn');
+        const addMissedIssueRowBtn = document.getElementById('addMissedIssueRowBtn');
+        const addCorrectionRowBtn = document.getElementById('addCorrectionRowBtn');
+        const feedbackTypeTabs = Array.from(document.querySelectorAll('.feedback-type-tab'));
+        const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+
+        const tableBodies = {
+            false_alarm: falseAlarmTableBody,
+            missed_issue: missedIssueTableBody,
+            correction: correctionTableBody,
+        };
+
+        const fieldLabels = {
+            false_alarm: { left: 'false finding', right: 'short explanation' },
+            missed_issue: { left: 'missed issue', right: 'expected finding' },
+            correction: { left: 'wrong finding', right: 'corrected finding' },
+        };
 
         const removedItemIds = new Set();
 
@@ -354,16 +473,40 @@
             await saveAllFeedbackChanges();
         });
 
-        addFeedbackRowBtn.addEventListener('click', () => {
-            feedbackRegistryTableBody.appendChild(createFeedbackRow(null));
+        addFalseAlarmRowBtn.addEventListener('click', () => addNewRow('false_alarm'));
+        addMissedIssueRowBtn.addEventListener('click', () => addNewRow('missed_issue'));
+        addCorrectionRowBtn.addEventListener('click', () => addNewRow('correction'));
+        feedbackTypeTabs.forEach((tab) => {
+            tab.addEventListener('click', () => {
+                switchFeedbackTypeTab(tab.getAttribute('data-type') || 'false_alarm');
+            });
+        });
+
+        function switchFeedbackTypeTab(feedbackType) {
+            feedbackTypeTabs.forEach((tab) => {
+                tab.classList.toggle('active', tab.getAttribute('data-type') === feedbackType);
+            });
+            tabPanels.forEach((panel) => {
+                panel.classList.toggle('active', panel.getAttribute('data-type') === feedbackType);
+            });
+        }
+
+        function addNewRow(feedbackType) {
+            const tableBody = tableBodies[feedbackType];
+            if (!tableBody) {
+                return;
+            }
+            tableBody.appendChild(createFeedbackRow(feedbackType, null));
             feedbackRegistryStatus.textContent = 'New row added. Click Save to apply changes.';
             feedbackRegistryStatus.style.color = '#92400e';
-        });
+        }
 
         async function loadFeedbackRegistry() {
             feedbackRegistryStatus.textContent = 'Loading feedback registry...';
             feedbackRegistryStatus.style.color = '#4b5563';
-            feedbackRegistryTableBody.innerHTML = '';
+            falseAlarmTableBody.innerHTML = '';
+            missedIssueTableBody.innerHTML = '';
+            correctionTableBody.innerHTML = '';
             removedItemIds.clear();
 
             try {
@@ -374,8 +517,11 @@
                 }
 
                 const items = Array.isArray(data.items) ? data.items : [];
-                renderFeedbackRegistryTable(items);
-                feedbackRegistryStatus.textContent = `Loaded ${items.length} feedback item(s).`;
+                renderFeedbackRegistryTables(items);
+                const falseAlarmCount = items.filter((item) => item.feedback_type === 'false_alarm').length;
+                const missedIssueCount = items.filter((item) => item.feedback_type === 'missed_issue').length;
+                const correctionCount = items.filter((item) => item.feedback_type === 'correction').length;
+                feedbackRegistryStatus.textContent = `Loaded ${items.length} item(s): ${falseAlarmCount} false alarm, ${missedIssueCount} missed issue, ${correctionCount} correction.`;
                 feedbackRegistryStatus.style.color = '#065f46';
             } catch (error) {
                 feedbackRegistryStatus.textContent = `Failed to load feedback registry: ${error.message || 'Unknown error'}`;
@@ -383,22 +529,41 @@
             }
         }
 
-        function renderFeedbackRegistryTable(items) {
-            feedbackRegistryTableBody.innerHTML = '';
+        function renderFeedbackRegistryTables(items) {
+            falseAlarmTableBody.innerHTML = '';
+            missedIssueTableBody.innerHTML = '';
+            correctionTableBody.innerHTML = '';
 
-            if (!Array.isArray(items) || items.length === 0) {
-                feedbackRegistryTableBody.appendChild(createFeedbackRow(null));
-                feedbackRegistryStatus.textContent = 'No feedback items yet. Add details in the row and click Save.';
-                feedbackRegistryStatus.style.color = '#92400e';
-                return;
+            const grouped = {
+                false_alarm: [],
+                missed_issue: [],
+                correction: [],
+            };
+
+            (Array.isArray(items) ? items : []).forEach((item) => {
+                const kind = item?.feedback_type;
+                if (grouped[kind]) {
+                    grouped[kind].push(item);
+                }
+            });
+
+            for (const kind of Object.keys(grouped)) {
+                const targetBody = tableBodies[kind];
+                const list = grouped[kind];
+                if (!list.length) {
+                    targetBody.appendChild(createFeedbackRow(kind, null));
+                    continue;
+                }
+                list.forEach((item) => targetBody.appendChild(createFeedbackRow(kind, item)));
             }
 
-            items.forEach((item) => {
-                feedbackRegistryTableBody.appendChild(createFeedbackRow(item));
-            });
+            if (!Array.isArray(items) || items.length === 0) {
+                feedbackRegistryStatus.textContent = 'No feedback items yet. Add details in a row and click Save.';
+                feedbackRegistryStatus.style.color = '#92400e';
+            }
         }
 
-        function createFeedbackRow(item) {
+        function createFeedbackRow(feedbackType, item) {
             const row = document.createElement('tr');
             const isNew = !item || !item.id;
             if (isNew) {
@@ -406,26 +571,30 @@
             } else {
                 row.setAttribute('data-item-id', String(item.id));
             }
+            row.setAttribute('data-feedback-type', feedbackType);
             row.setAttribute('data-default-reason', (item && item.reason) || 'Added from feedback registry UI');
+            row.setAttribute('data-mode', (item && item.mode) || 'french_review');
+
+            const labels = fieldLabels[feedbackType] || { left: 'issue pattern', right: 'expected finding' };
+            const leftValue = item?.issue_pattern || '';
+            const rightValue = feedbackType === 'false_alarm' ? (item?.reason || '') : (item?.expected_finding || '');
+            const mode = (item && item.mode) || 'french_review';
 
             const status = (item && item.status) || 'active';
             row.innerHTML = `
                 <td>
-                    <select data-field="feedback_type">
-                        <option value="false_alarm" ${(item?.feedback_type || 'false_alarm') === 'false_alarm' ? 'selected' : ''}>false_alarm</option>
-                        <option value="missed_issue" ${item?.feedback_type === 'missed_issue' ? 'selected' : ''}>missed_issue</option>
-                        <option value="correction" ${item?.feedback_type === 'correction' ? 'selected' : ''}>correction</option>
-                    </select>
+                    <textarea data-field="left_text" placeholder="${escapeHtml(labels.left)}">${escapeHtml(leftValue)}</textarea>
+                </td>
+                <td>
+                    <textarea data-field="right_text" placeholder="${escapeHtml(labels.right)}">${escapeHtml(rightValue)}</textarea>
                 </td>
                 <td>
                     <div class="mode-checklist" data-field="mode">
-                        <label class="mode-chip" title="French Review"><input type="checkbox" value="french_review" ${(item?.mode || 'french_review') === 'french_review' ? 'checked' : ''}><span>FR</span></label>
-                        <label class="mode-chip" title="English Review"><input type="checkbox" value="english_review" ${item?.mode === 'english_review' ? 'checked' : ''}><span>EN</span></label>
-                        <label class="mode-chip" title="Comparison"><input type="checkbox" value="comparison" ${item?.mode === 'comparison' ? 'checked' : ''}><span>comparison</span></label>
+                        <label class="mode-chip" title="French Review"><input type="checkbox" value="french_review" ${mode === 'french_review' ? 'checked' : ''}><span>FR</span></label>
+                        <label class="mode-chip" title="English Review"><input type="checkbox" value="english_review" ${mode === 'english_review' ? 'checked' : ''}><span>EN</span></label>
+                        <label class="mode-chip" title="Comparison"><input type="checkbox" value="comparison" ${mode === 'comparison' ? 'checked' : ''}><span>comparison</span></label>
                     </div>
                 </td>
-                <td><textarea data-field="issue_pattern">${escapeHtml(item?.issue_pattern || '')}</textarea></td>
-                <td><textarea data-field="expected_finding">${escapeHtml(item?.expected_finding || '')}</textarea></td>
                 <td>
                     <select data-field="status">
                         <option value="pending_review" ${status === 'pending_review' ? 'selected' : ''}>pending_review</option>
@@ -442,13 +611,15 @@
             if (removeBtn) {
                 removeBtn.addEventListener('click', () => {
                     const rowId = row.getAttribute('data-item-id');
+                    const rowType = row.getAttribute('data-feedback-type');
                     if (rowId) {
                         removedItemIds.add(rowId);
                     }
                     row.remove();
 
-                    if (!feedbackRegistryTableBody.querySelector('tr')) {
-                        feedbackRegistryTableBody.appendChild(createFeedbackRow(null));
+                    const body = tableBodies[rowType];
+                    if (body && !body.querySelector('tr')) {
+                        body.appendChild(createFeedbackRow(rowType, null));
                     }
 
                     feedbackRegistryStatus.textContent = `${removedItemIds.size} existing row(s) marked for removal. Click Save to apply changes.`;
@@ -460,16 +631,44 @@
         }
 
         function getFeedbackPayloadFromRow(row) {
+            const feedbackType = row.getAttribute('data-feedback-type') || 'false_alarm';
+            const leftText = row.querySelector('[data-field="left_text"]')?.value || '';
+            const rightText = row.querySelector('[data-field="right_text"]')?.value || '';
             const modeContainer = row.querySelector('[data-field="mode"]');
             const selectedModes = modeContainer
                 ? Array.from(modeContainer.querySelectorAll('input[type="checkbox"]:checked')).map((opt) => opt.value)
                 : [];
+            const status = row.querySelector('[data-field="status"]')?.value || 'active';
+
+            if (feedbackType === 'false_alarm') {
+                return {
+                    modes: selectedModes,
+                    feedback_type: 'false_alarm',
+                    issue_pattern: leftText,
+                    reason: rightText,
+                    expected_finding: null,
+                    status,
+                };
+            }
+
+            if (feedbackType === 'missed_issue') {
+                return {
+                    modes: selectedModes,
+                    feedback_type: 'missed_issue',
+                    issue_pattern: leftText,
+                    reason: `Missed issue feedback: ${leftText.trim().slice(0, 120)}`,
+                    expected_finding: rightText,
+                    status,
+                };
+            }
+
             return {
                 modes: selectedModes,
-                feedback_type: row.querySelector('[data-field="feedback_type"]')?.value,
-                issue_pattern: row.querySelector('[data-field="issue_pattern"]')?.value,
-                expected_finding: row.querySelector('[data-field="expected_finding"]')?.value || null,
-                status: row.querySelector('[data-field="status"]')?.value,
+                feedback_type: 'correction',
+                issue_pattern: leftText,
+                reason: `Correction feedback: ${leftText.trim().slice(0, 120)}`,
+                expected_finding: rightText,
+                status,
             };
         }
 
@@ -479,21 +678,27 @@
             feedbackRegistryStatus.style.color = '#4b5563';
 
             try {
-                const activeRows = Array.from(feedbackRegistryTableBody.querySelectorAll('tr'));
+                const activeRows = Array.from(document.querySelectorAll('.feedback-table-body tr'));
 
                 for (const row of activeRows) {
                     const payload = getFeedbackPayloadFromRow(row);
                     const issuePattern = (payload.issue_pattern || '').trim();
+                    const rightText = (payload.feedback_type === 'false_alarm' ? payload.reason : payload.expected_finding || '').trim();
                     const selectedModes = payload.modes || [];
-                    const isBlankDraft = !row.getAttribute('data-item-id') && !issuePattern;
+                    const isBlankDraft = !row.getAttribute('data-item-id') && !issuePattern && !rightText;
                     if (isBlankDraft) {
                         continue;
                     }
                     if (!issuePattern) {
-                        throw new Error('Issue pattern is required for every row.');
+                        const label = fieldLabels[payload.feedback_type]?.left || 'left field';
+                        throw new Error(`${label} is required for every saved row.`);
+                    }
+                    if (!rightText) {
+                        const label = fieldLabels[payload.feedback_type]?.right || 'right field';
+                        throw new Error(`${label} is required for every saved row.`);
                     }
                     if (selectedModes.length === 0) {
-                        throw new Error('Please select at least one mode for every row.');
+                        throw new Error('Please select at least one mode for every saved row.');
                     }
                 }
 
@@ -517,8 +722,9 @@
                     const itemId = row.getAttribute('data-item-id');
                     const payload = getFeedbackPayloadFromRow(row);
                     const issuePattern = (payload.issue_pattern || '').trim();
+                    const rightText = (payload.feedback_type === 'false_alarm' ? payload.reason : payload.expected_finding || '').trim();
                     const selectedModes = payload.modes || [];
-                    const isBlankDraft = !itemId && !issuePattern;
+                    const isBlankDraft = !itemId && !issuePattern && !rightText;
                     if (isBlankDraft) {
                         continue;
                     }
@@ -532,6 +738,7 @@
                                 mode: firstMode,
                                 feedback_type: payload.feedback_type,
                                 issue_pattern: payload.issue_pattern,
+                                reason: payload.reason,
                                 expected_finding: payload.expected_finding,
                                 status: payload.status,
                             }),
@@ -551,7 +758,7 @@
                                     feedback_type: payload.feedback_type,
                                     finding_category: null,
                                     issue_pattern: issuePattern,
-                                    reason: issuePattern || row.getAttribute('data-default-reason') || 'Added from feedback registry UI',
+                                    reason: payload.reason || row.getAttribute('data-default-reason') || 'Added from feedback registry UI',
                                     expected_finding: payload.expected_finding,
                                     original_finding: null,
                                     priority: 'medium',
@@ -574,7 +781,7 @@
                                     feedback_type: payload.feedback_type,
                                     finding_category: null,
                                     issue_pattern: issuePattern,
-                                    reason: issuePattern || row.getAttribute('data-default-reason') || 'Added from feedback registry UI',
+                                    reason: payload.reason || row.getAttribute('data-default-reason') || 'Added from feedback registry UI',
                                     expected_finding: payload.expected_finding,
                                     original_finding: null,
                                     priority: 'medium',

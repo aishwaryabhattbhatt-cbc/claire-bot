@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 
 from app.core.config import get_settings
 from app.api import router
-from app.services.reference_service import load_reference_documents
+from app.checks.alignment_rules import load_reference_documents
 
 settings = get_settings()
 
@@ -31,6 +31,12 @@ def startup() -> None:
 def root():
     """Serve the main frontend page"""
     return FileResponse(str(Path(__file__).parent / "static" / "index.html"))
+
+
+@app.get("/feedback-registry")
+def feedback_registry_page():
+    """Serve the feedback registry page"""
+    return FileResponse(str(Path(__file__).parent / "static" / "feedback.html"))
 
 
 @app.get("/health")

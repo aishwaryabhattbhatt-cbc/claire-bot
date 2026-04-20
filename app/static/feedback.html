@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClaireBot - Feedback</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            color: #0f172a;
+            background: #fff;
+        }
+        .topbar {
+            height: 56px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            color: #111827;
+        }
+        .brand-badge {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            background: #111827;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .topbar-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .topbar-tab {
+            text-decoration: none;
+            color: #374151;
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .topbar-tab.active {
+            background: #111827;
+            color: #fff;
+        }
+        .page {
+            padding: 24px;
+        }
+        h1 {
+            font-size: 28px;
+            color: #111827;
+            margin-bottom: 6px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+        .guidance {
+            margin-bottom: 16px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: #374151;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .guidance ul {
+            margin-top: 6px;
+            padding-left: 18px;
+        }
+        .guidance li {
+            margin: 4px 0;
+        }
+        .guidance-accordion {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 8px;
+            margin-top: 8px;
+        }
+        .guidance-accordion:first-of-type {
+            border-top: none;
+            padding-top: 0;
+            margin-top: 0;
+        }
+        .guidance-accordion summary {
+            cursor: pointer;
+            font-weight: 700;
+            color: #111827;
+            list-style: none;
+        }
+        .guidance-accordion summary::-webkit-details-marker {
+            display: none;
+        }
+        .guidance-accordion summary::after {
+            content: '▾';
+            float: right;
+            color: #6b7280;
+            font-size: 12px;
+        }
+        .guidance-accordion[open] summary::after {
+            content: '▴';
+        }
+        .guidance-accordion-content {
+            margin-top: 8px;
+        }
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .status {
+            font-size: 13px;
+            color: #4b5563;
+        }
+        .save-btn {
+            width: auto;
+            border: none;
+            border-radius: 8px;
+            background: #111827;
+            color: #fff;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .save-btn:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+        .feedback-table-wrap {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: auto;
+            background: #fff;
+        }
+        .feedback-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .col-type {
+            width: 150px;
+        }
+        .col-mode {
+            width: 140px;
+        }
+        .col-status {
+            width: 110px;
+        }
+        .col-actions {
+            width: 72px;
+        }
+        .feedback-table th,
+        .feedback-table td {
+            border-bottom: 1px solid #f1f5f9;
+            padding: 8px;
+            font-size: 12px;
+            vertical-align: top;
+        }
+        .feedback-table th {
+            background: #f8fafc;
+            text-align: left;
+            font-weight: 700;
+            color: #111827;
+        }
+        .feedback-table input,
+        .feedback-table select,
+        .feedback-table textarea {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 6px;
+            font-size: 12px;
+            font-family: inherit;
+            background: #fff;
+        }
+        .mode-checklist {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            white-space: normal;
+            min-height: 30px;
+        }
+        .mode-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            color: #111827;
+            white-space: nowrap;
+        }
+        @media (max-width: 1100px) {
+            .feedback-table th,
+            .feedback-table td {
+                padding: 6px;
+            }
+            .col-type {
+                width: 132px;
+            }
+            .col-mode {
+                width: 124px;
+            }
+            .col-status {
+                width: 98px;
+            }
+        }
+        @media (max-width: 750px) {
+            .feedback-table-wrap {
+                overflow-x: auto;
+            }
+            .feedback-table {
+                min-width: 750px;
+            }
+        }
+        .mode-chip input {
+            width: 14px;
+            height: 14px;
+            margin: 0;
+        }
+        .feedback-table textarea {
+            min-height: 58px;
+            resize: vertical;
+        }
+        .row-actions {
+            margin-top: 12px;
+            display: flex;
+            justify-content: center;
+        }
+        .icon-circle-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: none;
+            box-shadow: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .icon-circle-btn.remove-btn {
+            background: #b91c1c;
+            color: #fff;
+        }
+        .icon-circle-btn.add-btn {
+            background: #111827;
+            color: #fff;
+        }
+        .icon-circle-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand"><span class="brand-badge">C</span> ClaireBot</div>
+        <nav class="topbar-nav">
+            <a class="topbar-tab" href="/">Review</a>
+            <a class="topbar-tab active" href="/feedback-registry">Feedback</a>
+        </nav>
+    </header>
+
+    <main class="page">
+        <h1>Feedback</h1>
+        <p class="subtitle">Use this table to teach ClaireBot what to suppress, what to enforce, and how to phrase expected findings.</p>
+        <div class="guidance">
+            <details class="guidance-accordion" open>
+                <summary>How to enter feedback</summary>
+                <div class="guidance-accordion-content">
+                    <ul>
+                        <li>Pick <strong>Type</strong>: <strong>false_alarm</strong> to suppress recurring noise, <strong>missed_issue</strong> to enforce checks that were missed, or <strong>correction</strong> to improve finding wording.</li>
+                        <li>Set <strong>Mode</strong> using the checkboxes to scope the rule to one or more flows: French Review, English Review, and/or Comparison.</li>
+                        <li>Write a clear <strong>Issue Pattern</strong> and optional <strong>Expected Finding</strong>; keep entries specific and reusable.</li>
+                    </ul>
+                </div>
+            </details>
+            <details class="guidance-accordion" open>
+                <summary>How this is used in workflow</summary>
+                <div class="guidance-accordion-content">
+                    <ul>
+                        <li>Saved rows are stored in the feedback registry and injected into the prompt as structured guidance before LLM review.</li>
+                        <li>Rules are mode-scoped and only <strong>active</strong> rows are applied at runtime.</li>
+                        <li>Deterministic hard-coded checks still run first; this registry augments downstream LLM behavior and does not replace those fixed rules.</li>
+                    </ul>
+                </div>
+            </details>
+        </div>
+
+        <div class="toolbar">
+            <div class="status" id="feedbackRegistryStatus">Loading feedback registry...</div>
+            <button class="save-btn" id="saveFeedbackBtn" type="button">Save</button>
+        </div>
+
+        <div class="feedback-table-wrap">
+            <table class="feedback-table" id="feedbackRegistryTable">
+                <colgroup>
+                    <col class="col-type">
+                    <col class="col-mode">
+                    <col>
+                    <col>
+                    <col class="col-status">
+                    <col class="col-actions">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Mode</th>
+                        <th>Issue Pattern</th>
+                        <th>Expected Finding</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="feedbackRegistryTableBody"></tbody>
+            </table>
+        </div>
+        <div class="row-actions">
+            <button class="icon-circle-btn add-btn" id="addFeedbackRowBtn" type="button" aria-label="Add row" title="Add row">+</button>
+        </div>
+    </main>
+
+    <script>
+        const feedbackRegistryTableBody = document.getElementById('feedbackRegistryTableBody');
+        const feedbackRegistryStatus = document.getElementById('feedbackRegistryStatus');
+        const saveFeedbackBtn = document.getElementById('saveFeedbackBtn');
+        const addFeedbackRowBtn = document.getElementById('addFeedbackRowBtn');
+
+        const removedItemIds = new Set();
+
+        saveFeedbackBtn.addEventListener('click', async () => {
+            await saveAllFeedbackChanges();
+        });
+
+        addFeedbackRowBtn.addEventListener('click', () => {
+            feedbackRegistryTableBody.appendChild(createFeedbackRow(null));
+            feedbackRegistryStatus.textContent = 'New row added. Click Save to apply changes.';
+            feedbackRegistryStatus.style.color = '#92400e';
+        });
+
+        async function loadFeedbackRegistry() {
+            feedbackRegistryStatus.textContent = 'Loading feedback registry...';
+            feedbackRegistryStatus.style.color = '#4b5563';
+            feedbackRegistryTableBody.innerHTML = '';
+            removedItemIds.clear();
+
+            try {
+                const response = await fetch('/feedback');
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to load feedback registry');
+                }
+
+                const items = Array.isArray(data.items) ? data.items : [];
+                renderFeedbackRegistryTable(items);
+                feedbackRegistryStatus.textContent = `Loaded ${items.length} feedback item(s).`;
+                feedbackRegistryStatus.style.color = '#065f46';
+            } catch (error) {
+                feedbackRegistryStatus.textContent = `Failed to load feedback registry: ${error.message || 'Unknown error'}`;
+                feedbackRegistryStatus.style.color = '#991b1b';
+            }
+        }
+
+        function renderFeedbackRegistryTable(items) {
+            feedbackRegistryTableBody.innerHTML = '';
+
+            if (!Array.isArray(items) || items.length === 0) {
+                feedbackRegistryTableBody.appendChild(createFeedbackRow(null));
+                feedbackRegistryStatus.textContent = 'No feedback items yet. Add details in the row and click Save.';
+                feedbackRegistryStatus.style.color = '#92400e';
+                return;
+            }
+
+            items.forEach((item) => {
+                feedbackRegistryTableBody.appendChild(createFeedbackRow(item));
+            });
+        }
+
+        function createFeedbackRow(item) {
+            const row = document.createElement('tr');
+            const isNew = !item || !item.id;
+            if (isNew) {
+                row.setAttribute('data-new-item', 'true');
+            } else {
+                row.setAttribute('data-item-id', String(item.id));
+            }
+            row.setAttribute('data-default-reason', (item && item.reason) || 'Added from feedback registry UI');
+
+            const status = (item && item.status) || 'active';
+            row.innerHTML = `
+                <td>
+                    <select data-field="feedback_type">
+                        <option value="false_alarm" ${(item?.feedback_type || 'false_alarm') === 'false_alarm' ? 'selected' : ''}>false_alarm</option>
+                        <option value="missed_issue" ${item?.feedback_type === 'missed_issue' ? 'selected' : ''}>missed_issue</option>
+                        <option value="correction" ${item?.feedback_type === 'correction' ? 'selected' : ''}>correction</option>
+                    </select>
+                </td>
+                <td>
+                    <div class="mode-checklist" data-field="mode">
+                        <label class="mode-chip" title="French Review"><input type="checkbox" value="french_review" ${(item?.mode || 'french_review') === 'french_review' ? 'checked' : ''}><span>FR</span></label>
+                        <label class="mode-chip" title="English Review"><input type="checkbox" value="english_review" ${item?.mode === 'english_review' ? 'checked' : ''}><span>EN</span></label>
+                        <label class="mode-chip" title="Comparison"><input type="checkbox" value="comparison" ${item?.mode === 'comparison' ? 'checked' : ''}><span>comparison</span></label>
+                    </div>
+                </td>
+                <td><textarea data-field="issue_pattern">${escapeHtml(item?.issue_pattern || '')}</textarea></td>
+                <td><textarea data-field="expected_finding">${escapeHtml(item?.expected_finding || '')}</textarea></td>
+                <td>
+                    <select data-field="status">
+                        <option value="pending_review" ${status === 'pending_review' ? 'selected' : ''}>pending_review</option>
+                        <option value="active" ${status === 'active' ? 'selected' : ''}>active</option>
+                        <option value="disabled" ${status === 'disabled' ? 'selected' : ''}>disabled</option>
+                    </select>
+                </td>
+                <td>
+                    <button type="button" class="icon-circle-btn remove-btn" data-action="remove" aria-label="Remove row" title="Remove row">−</button>
+                </td>
+            `;
+
+            const removeBtn = row.querySelector('button[data-action="remove"]');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', () => {
+                    const rowId = row.getAttribute('data-item-id');
+                    if (rowId) {
+                        removedItemIds.add(rowId);
+                    }
+                    row.remove();
+
+                    if (!feedbackRegistryTableBody.querySelector('tr')) {
+                        feedbackRegistryTableBody.appendChild(createFeedbackRow(null));
+                    }
+
+                    feedbackRegistryStatus.textContent = `${removedItemIds.size} existing row(s) marked for removal. Click Save to apply changes.`;
+                    feedbackRegistryStatus.style.color = '#92400e';
+                });
+            }
+
+            return row;
+        }
+
+        function getFeedbackPayloadFromRow(row) {
+            const modeContainer = row.querySelector('[data-field="mode"]');
+            const selectedModes = modeContainer
+                ? Array.from(modeContainer.querySelectorAll('input[type="checkbox"]:checked')).map((opt) => opt.value)
+                : [];
+            return {
+                modes: selectedModes,
+                feedback_type: row.querySelector('[data-field="feedback_type"]')?.value,
+                issue_pattern: row.querySelector('[data-field="issue_pattern"]')?.value,
+                expected_finding: row.querySelector('[data-field="expected_finding"]')?.value || null,
+                status: row.querySelector('[data-field="status"]')?.value,
+            };
+        }
+
+        async function saveAllFeedbackChanges() {
+            saveFeedbackBtn.disabled = true;
+            feedbackRegistryStatus.textContent = 'Saving changes...';
+            feedbackRegistryStatus.style.color = '#4b5563';
+
+            try {
+                const activeRows = Array.from(feedbackRegistryTableBody.querySelectorAll('tr'));
+
+                for (const row of activeRows) {
+                    const payload = getFeedbackPayloadFromRow(row);
+                    const issuePattern = (payload.issue_pattern || '').trim();
+                    const selectedModes = payload.modes || [];
+                    const isBlankDraft = !row.getAttribute('data-item-id') && !issuePattern;
+                    if (isBlankDraft) {
+                        continue;
+                    }
+                    if (!issuePattern) {
+                        throw new Error('Issue pattern is required for every row.');
+                    }
+                    if (selectedModes.length === 0) {
+                        throw new Error('Please select at least one mode for every row.');
+                    }
+                }
+
+                let removedCount = 0;
+                for (const itemId of removedItemIds) {
+                    const response = await fetch(`/feedback/${encodeURIComponent(itemId)}`, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ reason: 'Removed by user from feedback registry page' }),
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.detail || `Failed to remove row: ${itemId}`);
+                    }
+                    removedCount += 1;
+                }
+
+                let updatedCount = 0;
+                let createdCount = 0;
+                for (const row of activeRows) {
+                    const itemId = row.getAttribute('data-item-id');
+                    const payload = getFeedbackPayloadFromRow(row);
+                    const issuePattern = (payload.issue_pattern || '').trim();
+                    const selectedModes = payload.modes || [];
+                    const isBlankDraft = !itemId && !issuePattern;
+                    if (isBlankDraft) {
+                        continue;
+                    }
+
+                    if (itemId) {
+                        const firstMode = selectedModes[0];
+                        const response = await fetch(`/feedback/${encodeURIComponent(itemId)}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                mode: firstMode,
+                                feedback_type: payload.feedback_type,
+                                issue_pattern: payload.issue_pattern,
+                                expected_finding: payload.expected_finding,
+                                status: payload.status,
+                            }),
+                        });
+                        const data = await response.json();
+                        if (!response.ok) {
+                            throw new Error(data.detail || `Failed to save row: ${itemId}`);
+                        }
+                        updatedCount += 1;
+
+                        for (const extraMode of selectedModes.slice(1)) {
+                            const createResponse = await fetch('/feedback', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    mode: extraMode,
+                                    feedback_type: payload.feedback_type,
+                                    finding_category: null,
+                                    issue_pattern: issuePattern,
+                                    reason: issuePattern || row.getAttribute('data-default-reason') || 'Added from feedback registry UI',
+                                    expected_finding: payload.expected_finding,
+                                    original_finding: null,
+                                    priority: 'medium',
+                                    created_by: 'ui',
+                                }),
+                            });
+                            const createData = await createResponse.json();
+                            if (!createResponse.ok) {
+                                throw new Error(createData.detail || 'Failed to create extra mode row');
+                            }
+                            createdCount += 1;
+                        }
+                    } else {
+                        for (const mode of selectedModes) {
+                            const response = await fetch('/feedback', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    mode,
+                                    feedback_type: payload.feedback_type,
+                                    finding_category: null,
+                                    issue_pattern: issuePattern,
+                                    reason: issuePattern || row.getAttribute('data-default-reason') || 'Added from feedback registry UI',
+                                    expected_finding: payload.expected_finding,
+                                    original_finding: null,
+                                    priority: 'medium',
+                                    created_by: 'ui',
+                                }),
+                            });
+                            const data = await response.json();
+                            if (!response.ok) {
+                                throw new Error(data.detail || 'Failed to create row');
+                            }
+                            createdCount += 1;
+                        }
+                    }
+                }
+
+                feedbackRegistryStatus.textContent = `Saved successfully. Created ${createdCount} row(s), updated ${updatedCount} row(s), removed ${removedCount} row(s).`;
+                feedbackRegistryStatus.style.color = '#065f46';
+                await loadFeedbackRegistry();
+            } catch (error) {
+                feedbackRegistryStatus.textContent = `Save failed: ${error.message || 'Unknown error'}`;
+                feedbackRegistryStatus.style.color = '#991b1b';
+            } finally {
+                saveFeedbackBtn.disabled = false;
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        loadFeedbackRegistry();
+    </script>
+</body>
+</html>

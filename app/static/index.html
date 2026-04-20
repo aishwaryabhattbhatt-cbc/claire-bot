@@ -60,9 +60,20 @@
         .topbar-nav {
             display: flex;
             align-items: center;
-            gap: 18px;
-            color: #6b7280;
+            gap: 8px;
             font-size: 13px;
+        }
+        .topbar-tab {
+            text-decoration: none;
+            color: #374151;
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-weight: 600;
+        }
+        .topbar-tab.active {
+            background: #111827;
+            color: #fff;
         }
         .workspace {
             display: grid;
@@ -220,6 +231,172 @@
             margin-top: 10px;
             display: flex;
             gap: 8px;
+        }
+        .findings-list {
+            margin-top: 14px;
+            display: none;
+            gap: 10px;
+        }
+        .finding-card {
+            background: #ecfdf5;
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            padding: 10px;
+            color: #065f46;
+        }
+        .finding-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .finding-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: #064e3b;
+        }
+        .finding-body {
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: #065f46;
+        }
+        .output-feedback {
+            margin-top: 12px;
+            border: 1px solid #86efac;
+            border-radius: 8px;
+            background: #ecfdf5;
+            padding: 10px;
+            display: grid;
+            gap: 8px;
+        }
+        .output-feedback textarea {
+            width: 100%;
+            border: 1px solid #86efac;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 13px;
+            min-height: 90px;
+            resize: vertical;
+            user-select: text;
+            -webkit-user-select: text;
+            -webkit-touch-callout: default;
+        }
+        .output-feedback-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .mini-btn {
+            width: auto;
+            padding: 6px 10px;
+            font-size: 12px;
+            box-shadow: none;
+            border: none;
+            border-radius: 6px;
+            background: #111827;
+            color: #fff;
+        }
+        .mini-btn:hover:not(:disabled) {
+            transform: none;
+            box-shadow: none;
+        }
+        .inline-note {
+            font-size: 12px;
+            color: #065f46;
+        }
+        .feedback-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .feedback-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #f9fafb;
+            padding: 10px;
+            display: grid;
+            gap: 6px;
+        }
+        .feedback-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #4b5563;
+        }
+        .status-pill {
+            background: #e5e7eb;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #111827;
+        }
+        .status-pill.active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-pill.pending_derivation,
+        .status-pill.pending_activation {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-pill.disabled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status-pill.failed {
+            background: #fecaca;
+            color: #7f1d1d;
+        }
+        .feedback-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .feedback-table-wrap {
+            margin-top: 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: auto;
+            background: #fff;
+        }
+        .feedback-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 980px;
+        }
+        .feedback-table th,
+        .feedback-table td {
+            border-bottom: 1px solid #f1f5f9;
+            padding: 8px;
+            font-size: 12px;
+            vertical-align: top;
+        }
+        .feedback-table th {
+            background: #f8fafc;
+            text-align: left;
+            font-weight: 700;
+            color: #111827;
+        }
+        .feedback-table input,
+        .feedback-table select,
+        .feedback-table textarea {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 6px;
+            font-size: 12px;
+            font-family: inherit;
+            background: #fff;
+        }
+        .feedback-table textarea {
+            min-height: 58px;
+            resize: vertical;
         }
         .download-btn {
             width: auto;
@@ -554,6 +731,10 @@
     <div class="app-shell">
         <header class="topbar">
             <div class="brand"><span class="brand-badge">C</span> ClaireBot</div>
+            <nav class="topbar-nav">
+                <a class="topbar-tab active" href="/">Review</a>
+                <a class="topbar-tab" href="/feedback-registry">Feedback</a>
+            </nav>
         </header>
 
         <div class="workspace">
@@ -568,6 +749,8 @@
                             <div class="toggle-group">
                                 <input class="toggle-input" type="radio" id="promptFrenchReview" name="promptMode" value="french_review" checked>
                                 <label class="toggle-label" for="promptFrenchReview">French Review</label>
+                                <input class="toggle-input" type="radio" id="promptEnglishReview" name="promptMode" value="english_review">
+                                <label class="toggle-label" for="promptEnglishReview">English Review</label>
                                 <input class="toggle-input" type="radio" id="promptComparison" name="promptMode" value="comparison">
                                 <label class="toggle-label" for="promptComparison">Comparison</label>
                             </div>
@@ -605,6 +788,7 @@
                         <div class="result-actions">
                             <button type="button" class="download-btn" id="downloadCsvBtn">Download findings CSV</button>
                         </div>
+                        <div class="findings-list" id="findingsList"></div>
                     </div>
                 </div>
             </main>
@@ -627,6 +811,7 @@
             <div class="drawer-section" id="drawerInstructions">
                 <div class="tab-nav">
                     <button class="tab-btn active" id="tabComparisonBtn" type="button">Comparison</button>
+                    <button class="tab-btn" id="tabEnglishBtn" type="button">English Review</button>
                     <button class="tab-btn" id="tabFrenchBtn" type="button">French Review</button>
                 </div>
 
@@ -642,6 +827,12 @@
                     <textarea class="instructions-textarea" id="frenchInstructionsTextarea" placeholder="Loading French review instructions..."></textarea>
                 </div>
 
+                <div class="tab-panel" id="tabEnglishPanel">
+                    <label for="englishReviewInstructionsTextarea">English Review Instructions</label>
+                    <div class="file-note" id="englishReviewInstructionsSource">Source: default</div>
+                    <textarea class="instructions-textarea" id="englishReviewInstructionsTextarea" placeholder="Loading English review instructions..."></textarea>
+                </div>
+
                 <div class="modal-actions">
                     <button class="secondary-btn" id="discardInstructionsBtn" type="button">Discard</button>
                     <button class="secondary-btn" id="resetInstructionsBtn" type="button">Reset current tab</button>
@@ -650,46 +841,37 @@
                 <div class="file-note" id="instructionsSaveStatus">No local changes.</div>
             </div>
 
-            <div class="drawer-section" id="drawerReferences">
-                <div class="global-upload-grid">
-                    <div class="global-upload-item">
-                        <div class="global-upload-header">
-                            <div class="global-upload-label">Benchmark / Gold Standard Report</div>
-                            <span class="tooltip" title="Upload a previously approved report to compare structure and format against">?</span>
-                        </div>
-                        <input type="file" id="benchmarkGlobalFile" accept=".pptx,.pdf">
-                        <div class="global-upload-actions">
-                            <button class="secondary-btn" id="uploadBenchmarkBtn" type="button">Upload</button>
-                            <button class="secondary-btn" id="removeBenchmarkBtn" type="button">Remove</button>
-                        </div>
-                        <div class="file-note" id="benchmarkGlobalCurrent">Current: none</div>
-                    </div>
-
-                    <div class="global-upload-item">
-                        <div class="global-upload-header">
-                            <div class="global-upload-label">Age References Guidelines</div>
-                        </div>
-                        <input type="file" id="ageGlobalFile" accept=".pdf,.docx">
-                        <div class="global-upload-actions">
-                            <button class="secondary-btn" id="uploadAgeBtn" type="button">Upload</button>
-                            <button class="secondary-btn" id="removeAgeBtn" type="button">Remove</button>
-                        </div>
-                        <div class="file-note" id="ageGlobalCurrent">Current: none</div>
-                    </div>
-
-                    <div class="global-upload-item">
-                        <div class="global-upload-header">
-                            <div class="global-upload-label">Text Preferences Guidelines</div>
-                        </div>
-                        <input type="file" id="textGlobalFile" accept=".pdf,.docx">
-                        <div class="global-upload-actions">
-                            <button class="secondary-btn" id="uploadTextBtn" type="button">Upload</button>
-                            <button class="secondary-btn" id="removeTextBtn" type="button">Remove</button>
-                        </div>
-                        <div class="file-note" id="textGlobalCurrent">Current: none</div>
-                    </div>
+            <div class="drawer-section" id="drawerFeedback">
+                <div class="file-note" id="feedbackRegistryStatus">Structured feedback registry used to guide future reviews.</div>
+                <div class="modal-actions" style="margin-top:8px; justify-content:flex-start;">
+                    <button class="mini-btn" id="addFeedbackRowBtn" type="button">Add Row</button>
                 </div>
+                <div class="feedback-table-wrap">
+                    <table class="feedback-table" id="feedbackRegistryTable">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Mode</th>
+                                <th>Category</th>
+                                <th>Issue Pattern</th>
+                                <th>Expected Finding</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="feedbackRegistryTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
 
+            <div class="drawer-section" id="drawerReferences">
+                <div class="reference-block">
+                    <h4>Logo guidelines</h4>
+                    <pre id="logoDocsPreview">Loading...</pre>
+                </div>
                 <div class="reference-block" style="margin-top: 10px;">
                     <h4>Glossary files</h4>
                     <pre id="glossaryDocsPreview">Loading...</pre>
@@ -728,16 +910,21 @@
         const drawerTitle = document.getElementById('drawerTitle');
         const drawerLogs = document.getElementById('drawerLogs');
         const drawerInstructions = document.getElementById('drawerInstructions');
+        const drawerFeedback = document.getElementById('drawerFeedback');
         const drawerReferences = document.getElementById('drawerReferences');
         const drawerHowItWorks = document.getElementById('drawerHowItWorks');
         const tabComparisonBtn = document.getElementById('tabComparisonBtn');
+        const tabEnglishBtn = document.getElementById('tabEnglishBtn');
         const tabFrenchBtn = document.getElementById('tabFrenchBtn');
         const tabComparisonPanel = document.getElementById('tabComparisonPanel');
+        const tabEnglishPanel = document.getElementById('tabEnglishPanel');
         const tabFrenchPanel = document.getElementById('tabFrenchPanel');
         const downloadCsvBtn = document.getElementById('downloadCsvBtn');
         const englishInstructionsTextarea = document.getElementById('englishInstructionsTextarea');
+        const englishReviewInstructionsTextarea = document.getElementById('englishReviewInstructionsTextarea');
         const frenchInstructionsTextarea = document.getElementById('frenchInstructionsTextarea');
         const comparisonInstructionsSource = document.getElementById('comparisonInstructionsSource');
+        const englishReviewInstructionsSource = document.getElementById('englishReviewInstructionsSource');
         const frenchInstructionsSource = document.getElementById('frenchInstructionsSource');
         const saveInstructionsBtn = document.getElementById('saveInstructionsBtn');
         const resetInstructionsBtn = document.getElementById('resetInstructionsBtn');
@@ -745,34 +932,34 @@
         const instructionsSaveStatus = document.getElementById('instructionsSaveStatus');
         const glossaryDocsPreview = document.getElementById('glossaryDocsPreview');
         const styleGuideDocsPreview = document.getElementById('styleGuideDocsPreview');
-        const benchmarkGlobalFile = document.getElementById('benchmarkGlobalFile');
-        const ageGlobalFile = document.getElementById('ageGlobalFile');
-        const textGlobalFile = document.getElementById('textGlobalFile');
-        const uploadBenchmarkBtn = document.getElementById('uploadBenchmarkBtn');
-        const uploadAgeBtn = document.getElementById('uploadAgeBtn');
-        const uploadTextBtn = document.getElementById('uploadTextBtn');
-        const removeBenchmarkBtn = document.getElementById('removeBenchmarkBtn');
-        const removeAgeBtn = document.getElementById('removeAgeBtn');
-        const removeTextBtn = document.getElementById('removeTextBtn');
-        const benchmarkGlobalCurrent = document.getElementById('benchmarkGlobalCurrent');
-        const ageGlobalCurrent = document.getElementById('ageGlobalCurrent');
-        const textGlobalCurrent = document.getElementById('textGlobalCurrent');
+        const logoDocsPreview = document.getElementById('logoDocsPreview');
+        const findingsList = document.getElementById('findingsList');
+        const feedbackRegistryTableBody = document.getElementById('feedbackRegistryTableBody');
+        const feedbackRegistryStatus = document.getElementById('feedbackRegistryStatus');
+        const addFeedbackRowBtn = document.getElementById('addFeedbackRowBtn');
         let latestFindings = [];
+        let latestJobId = null;
+        let latestPromptMode = 'french_review';
         let originalInstructions = {
             comparison: '',
+            english: '',
             french: '',
             comparison_source: 'default',
+            english_source: 'default',
             french_source: 'default',
         };
 
         function setInstructionsTab(tabName) {
             const isComparison = tabName === 'comparison';
+            const isEnglish = tabName === 'english';
             const isFrench = tabName === 'french';
 
             tabComparisonBtn.classList.toggle('active', isComparison);
+            tabEnglishBtn.classList.toggle('active', isEnglish);
             tabFrenchBtn.classList.toggle('active', isFrench);
 
             tabComparisonPanel.classList.toggle('active', isComparison);
+            tabEnglishPanel.classList.toggle('active', isEnglish);
             tabFrenchPanel.classList.toggle('active', isFrench);
         }
 
@@ -785,12 +972,15 @@
         function openDrawer(sectionName) {
             drawerLogs.classList.toggle('active', sectionName === 'logs');
             drawerInstructions.classList.toggle('active', sectionName === 'instructions');
+            drawerFeedback.classList.toggle('active', sectionName === 'feedback');
             drawerReferences.classList.toggle('active', sectionName === 'references');
             drawerHowItWorks.classList.toggle('active', sectionName === 'howitworks');
             drawerTitle.textContent = sectionName === 'logs'
                 ? 'Backend Activity'
                 : sectionName === 'instructions'
                     ? 'Review Instructions'
+                    : sectionName === 'feedback'
+                        ? 'Feedback Registry'
                     : sectionName === 'references'
                         ? 'Reference Documents'
                         : 'How it works';
@@ -821,9 +1011,11 @@
         });
 
         tabComparisonBtn.addEventListener('click', () => setInstructionsTab('comparison'));
+        tabEnglishBtn.addEventListener('click', () => setInstructionsTab('english'));
         tabFrenchBtn.addEventListener('click', () => setInstructionsTab('french'));
 
         englishInstructionsTextarea.addEventListener('input', updateInstructionsDirtyState);
+        englishReviewInstructionsTextarea.addEventListener('input', updateInstructionsDirtyState);
         frenchInstructionsTextarea.addEventListener('input', updateInstructionsDirtyState);
 
         saveInstructionsBtn.addEventListener('click', async () => {
@@ -832,13 +1024,18 @@
 
         discardInstructionsBtn.addEventListener('click', () => {
             englishInstructionsTextarea.value = originalInstructions.comparison;
+            englishReviewInstructionsTextarea.value = originalInstructions.english;
             frenchInstructionsTextarea.value = originalInstructions.french;
             updateInstructionsDirtyState();
             addStatus('Instruction changes discarded.');
         });
 
         resetInstructionsBtn.addEventListener('click', async () => {
-            const activeMode = tabComparisonPanel.classList.contains('active') ? 'comparison' : 'french';
+            const activeMode = tabComparisonPanel.classList.contains('active')
+                ? 'comparison'
+                : tabEnglishPanel.classList.contains('active')
+                    ? 'english'
+                    : 'french';
             await resetInstructions(activeMode);
         });
 
@@ -846,32 +1043,13 @@
             radio.addEventListener('change', updateFileInputsByPromptMode);
         });
 
-        uploadBenchmarkBtn.addEventListener('click', async () => {
-            await uploadGlobalReference('benchmark_report', benchmarkGlobalFile);
-        });
 
-        uploadAgeBtn.addEventListener('click', async () => {
-            await uploadGlobalReference('age_references', ageGlobalFile);
-        });
-
-        uploadTextBtn.addEventListener('click', async () => {
-            await uploadGlobalReference('text_preferences', textGlobalFile);
-        });
-
-        removeBenchmarkBtn.addEventListener('click', async () => {
-            await removeGlobalReference('benchmark_report');
-        });
-
-        removeAgeBtn.addEventListener('click', async () => {
-            await removeGlobalReference('age_references');
-        });
-
-        removeTextBtn.addEventListener('click', async () => {
-            await removeGlobalReference('text_preferences');
-        });
 
         downloadCsvBtn.addEventListener('click', () => {
             downloadFindingsCsv();
+        });
+        addFeedbackRowBtn.addEventListener('click', () => {
+            insertNewFeedbackRow();
         });
 
         form.addEventListener('submit', async (e) => {
@@ -880,6 +1058,7 @@
             const reportFile = document.getElementById('reportFile').files[0];
             const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'french_review';
             const comparisonMode = promptMode === 'comparison';
+            const reportLanguage = promptMode === 'english_review' ? 'English' : 'French';
             const benchmarkFile = document.getElementById('benchmarkFile').files[0];
             const additionalContext = document.getElementById('additionalContext').value?.trim() || '';
 
@@ -900,7 +1079,7 @@
 
             const formData = new FormData();
             formData.append('file', reportFile);
-            formData.append('report_language', 'French');
+            formData.append('report_language', reportLanguage);
             formData.append('comparison_mode', comparisonMode);
             formData.append('prompt_mode', promptMode);
             if (benchmarkFile) {
@@ -927,6 +1106,7 @@
                     addStatus('Upload failed: server returned an error.');
                     showResult('error', 'Upload Failed', err.detail || 'Unknown error');
                     latestFindings = [];
+                    renderFindings([], null, latestPromptMode);
                     downloadCsvBtn.style.display = 'none';
                     return;
                 }
@@ -971,6 +1151,7 @@
                             addStatus(`Error: ${payload.message}`);
                             showResult('error', 'Review Failed', payload.message);
                             latestFindings = [];
+                            renderFindings([], null, latestPromptMode);
                             downloadCsvBtn.style.display = 'none';
                         } else if (eventType === 'usage') {
                             try {
@@ -998,8 +1179,13 @@
 
                 if (finalData) {
                     addStatus(`Job ID: ${finalData.job_id}`);
+                    latestJobId = finalData.job_id || null;
+                    latestPromptMode = finalData.prompt_mode || promptMode;
                     if (finalData.instructions_source) {
                         addStatus(`Instructions source used: ${finalData.instructions_source}`);
+                    }
+                    if (typeof finalData.applied_memory_count === 'number') {
+                        addStatus(`Active feedback registry rules applied (${latestPromptMode}): ${finalData.applied_memory_count}`);
                     }
                     if (finalData.llm_status === 'failed') {
                         addStatus(`LLM review failed: ${finalData.llm_error || 'Unknown error'}`);
@@ -1022,6 +1208,7 @@
                             finalData.llm_usage || null
                         );
                     latestFindings = Array.isArray(finalData.findings) ? finalData.findings : [];
+                    renderFindings(latestFindings, latestJobId, latestPromptMode);
                     downloadCsvBtn.style.display = 'inline-block';
                     form.reset();
                     document.getElementById('promptFrenchReview').checked = true;
@@ -1031,6 +1218,7 @@
                 addStatus('Upload failed: could not reach server.');
                 showResult('error', 'Connection Error', 'Failed to connect to server');
                 latestFindings = [];
+                renderFindings([], null, latestPromptMode);
                 downloadCsvBtn.style.display = 'none';
             } finally {
                 submitBtn.disabled = false;
@@ -1041,11 +1229,14 @@
         function updateFileInputsByPromptMode() {
             const promptMode = document.querySelector('input[name="promptMode"]:checked')?.value || 'french_review';
             const isComparison = promptMode === 'comparison';
+            const isEnglishReview = promptMode === 'english_review';
 
             benchmarkGroup.style.display = isComparison ? 'block' : 'none';
             reportFileLabel.textContent = isComparison
                 ? 'French Report File (to compare against English benchmark)'
-                : 'French Report File (PDF, PPTX, DOCX)';
+                : isEnglishReview
+                    ? 'English Report File (PDF, PPTX, DOCX)'
+                    : 'French Report File (PDF, PPTX, DOCX)';
         }
 
         function addStatus(message) {
@@ -1101,9 +1292,288 @@
             }
         }
 
+        function formatModeLabel(mode) {
+            if (mode === 'comparison') return 'Comparison';
+            if (mode === 'english_review') return 'English Review';
+            return 'French Review';
+        }
+
+        function renderFindings(findings, jobId, mode) {
+            findingsList.innerHTML = '';
+            if (!Array.isArray(findings) || findings.length === 0) {
+                const row = document.createElement('li');
+                row.className = 'status-item';
+                row.innerHTML = '<div class="status-text">No findings detected for this run.</div>';
+                findingsList.appendChild(row);
+                return;
+            }
+
+            findings.forEach((finding, idx) => {
+                const row = document.createElement('li');
+                row.className = 'status-item';
+                const page = finding?.page_number ?? '-';
+                const category = finding?.category || 'General';
+                const issue = finding?.issue_detected || 'Issue detected';
+                const fix = finding?.proposed_change || '';
+                const source = finding?.source ? ` [${finding.source}]` : '';
+                row.innerHTML = `
+                    <div class="status-text"><strong>#${idx + 1}</strong> p.${escapeHtml(String(page))} · ${escapeHtml(category)}${escapeHtml(source)}<br>${escapeHtml(issue)}${fix ? `<br><em>Proposed:</em> ${escapeHtml(fix)}` : ''}</div>
+                `;
+                findingsList.appendChild(row);
+            });
+        }
+
+        async function loadFeedbackRegistry() {
+            feedbackRegistryStatus.textContent = 'Loading feedback registry...';
+            feedbackRegistryStatus.style.color = '#4b5563';
+            feedbackRegistryTableBody.innerHTML = '';
+
+            try {
+                const response = await fetch('/feedback');
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to load feedback registry');
+                }
+
+                const items = Array.isArray(data.items) ? data.items : [];
+                renderFeedbackRegistryTable(items);
+                feedbackRegistryStatus.textContent = `Loaded ${items.length} feedback item(s).`;
+                feedbackRegistryStatus.style.color = '#065f46';
+            } catch (error) {
+                feedbackRegistryStatus.textContent = `Failed to load feedback registry: ${error.message || 'Unknown error'}`;
+                feedbackRegistryStatus.style.color = '#991b1b';
+            }
+        }
+
+        function renderFeedbackRegistryTable(items) {
+            feedbackRegistryTableBody.innerHTML = '';
+
+            if (!Array.isArray(items) || items.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td colspan="10" style="text-align:center;color:#6b7280;">No feedback registry items yet.</td>';
+                feedbackRegistryTableBody.appendChild(row);
+                return;
+            }
+
+            items.forEach((item) => {
+                const row = document.createElement('tr');
+                const status = item.status || 'active';
+                row.innerHTML = `
+                    <td>
+                        <select data-field="feedback_type">
+                            <option value="false_alarm" ${item.feedback_type === 'false_alarm' ? 'selected' : ''}>false_alarm</option>
+                            <option value="missed_issue" ${item.feedback_type === 'missed_issue' ? 'selected' : ''}>missed_issue</option>
+                            <option value="correction" ${item.feedback_type === 'correction' ? 'selected' : ''}>correction</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select data-field="mode">
+                            <option value="french_review" ${item.mode === 'french_review' ? 'selected' : ''}>french_review</option>
+                            <option value="english_review" ${item.mode === 'english_review' ? 'selected' : ''}>english_review</option>
+                            <option value="comparison" ${item.mode === 'comparison' ? 'selected' : ''}>comparison</option>
+                        </select>
+                    </td>
+                    <td><input data-field="finding_category" value="${escapeHtml(item.finding_category || '')}" /></td>
+                    <td><textarea data-field="issue_pattern">${escapeHtml(item.issue_pattern || '')}</textarea></td>
+                    <td><textarea data-field="expected_finding">${escapeHtml(item.expected_finding || '')}</textarea></td>
+                    <td><textarea data-field="reason">${escapeHtml(item.reason || '')}</textarea></td>
+                    <td>
+                        <select data-field="status">
+                            <option value="pending_review" ${status === 'pending_review' ? 'selected' : ''}>pending_review</option>
+                            <option value="active" ${status === 'active' ? 'selected' : ''}>active</option>
+                            <option value="disabled" ${status === 'disabled' ? 'selected' : ''}>disabled</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select data-field="priority">
+                            <option value="low" ${(item.priority || 'medium') === 'low' ? 'selected' : ''}>low</option>
+                            <option value="medium" ${(item.priority || 'medium') === 'medium' ? 'selected' : ''}>medium</option>
+                            <option value="high" ${(item.priority || 'medium') === 'high' ? 'selected' : ''}>high</option>
+                        </select>
+                    </td>
+                    <td>${escapeHtml((item.updated_at || '').replace('T', ' ').slice(0, 19))}</td>
+                    <td>
+                        <div class="feedback-actions">
+                            <button type="button" class="mini-btn" data-action="save">Save</button>
+                            <button type="button" class="mini-btn" data-action="disable">Disable</button>
+                        </div>
+                    </td>
+                `;
+
+                const saveBtn = row.querySelector('button[data-action="save"]');
+                const disableBtn = row.querySelector('button[data-action="disable"]');
+
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', async () => {
+                        await saveFeedbackRegistryItem(item.id, row);
+                    });
+                }
+
+                if (disableBtn) {
+                    disableBtn.addEventListener('click', async () => {
+                        await disableFeedbackRegistryItem(item.id);
+                    });
+                }
+
+                feedbackRegistryTableBody.appendChild(row);
+            });
+        }
+
+        function insertNewFeedbackRow() {
+            const emptyPlaceholder = feedbackRegistryTableBody.querySelector('td[colspan="10"]');
+            if (emptyPlaceholder) {
+                feedbackRegistryTableBody.innerHTML = '';
+            }
+
+            const row = document.createElement('tr');
+            row.setAttribute('data-new-item', 'true');
+            row.innerHTML = `
+                <td>
+                    <select data-field="feedback_type">
+                        <option value="false_alarm">false_alarm</option>
+                        <option value="missed_issue">missed_issue</option>
+                        <option value="correction">correction</option>
+                    </select>
+                </td>
+                <td>
+                    <select data-field="mode">
+                        <option value="french_review" ${latestPromptMode === 'french_review' ? 'selected' : ''}>french_review</option>
+                        <option value="english_review" ${latestPromptMode === 'english_review' ? 'selected' : ''}>english_review</option>
+                        <option value="comparison" ${latestPromptMode === 'comparison' ? 'selected' : ''}>comparison</option>
+                    </select>
+                </td>
+                <td><input data-field="finding_category" value="" /></td>
+                <td><textarea data-field="issue_pattern"></textarea></td>
+                <td><textarea data-field="expected_finding"></textarea></td>
+                <td><textarea data-field="reason"></textarea></td>
+                <td>
+                    <select data-field="status">
+                        <option value="pending_review">pending_review</option>
+                        <option value="active" selected>active</option>
+                        <option value="disabled">disabled</option>
+                    </select>
+                </td>
+                <td>
+                    <select data-field="priority">
+                        <option value="low">low</option>
+                        <option value="medium" selected>medium</option>
+                        <option value="high">high</option>
+                    </select>
+                </td>
+                <td>new</td>
+                <td>
+                    <div class="feedback-actions">
+                        <button type="button" class="mini-btn" data-action="save">Save</button>
+                        <button type="button" class="mini-btn" data-action="disable">Cancel</button>
+                    </div>
+                </td>
+            `;
+
+            const saveBtn = row.querySelector('button[data-action="save"]');
+            const cancelBtn = row.querySelector('button[data-action="disable"]');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', async () => {
+                    await saveFeedbackRegistryItem(null, row);
+                });
+            }
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    row.remove();
+                    if (!feedbackRegistryTableBody.querySelector('tr')) {
+                        renderFeedbackRegistryTable([]);
+                    }
+                });
+            }
+
+            feedbackRegistryTableBody.prepend(row);
+        }
+
+        function getFeedbackPayloadFromRow(row) {
+            return {
+                mode: row.querySelector('[data-field="mode"]')?.value,
+                feedback_type: row.querySelector('[data-field="feedback_type"]')?.value,
+                finding_category: row.querySelector('[data-field="finding_category"]')?.value || null,
+                issue_pattern: row.querySelector('[data-field="issue_pattern"]')?.value,
+                expected_finding: row.querySelector('[data-field="expected_finding"]')?.value || null,
+                reason: row.querySelector('[data-field="reason"]')?.value,
+                status: row.querySelector('[data-field="status"]')?.value,
+                priority: row.querySelector('[data-field="priority"]')?.value,
+            };
+        }
+
+        async function saveFeedbackRegistryItem(itemId, row) {
+            const payload = getFeedbackPayloadFromRow(row);
+            const issuePattern = (payload.issue_pattern || '').trim();
+            const reason = (payload.reason || '').trim();
+
+            if (!issuePattern || !reason) {
+                addStatus('Cannot save feedback row: issue pattern and reason are required.');
+                return;
+            }
+
+            try {
+                let response;
+                if (itemId) {
+                    response = await fetch(`/feedback/${encodeURIComponent(itemId)}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                } else {
+                    response = await fetch('/feedback', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            mode: payload.mode,
+                            feedback_type: payload.feedback_type,
+                            finding_category: payload.finding_category,
+                            issue_pattern: issuePattern,
+                            reason,
+                            expected_finding: payload.expected_finding,
+                            original_finding: null,
+                            priority: payload.priority || 'medium',
+                            created_by: 'ui',
+                        }),
+                    });
+                }
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to update feedback registry item');
+                }
+                addStatus(`Feedback registry item saved (${data.id || itemId}).`);
+                await loadFeedbackRegistry();
+            } catch (error) {
+                addStatus(`Failed to save feedback registry item: ${error.message || 'Unknown error'}`);
+            }
+        }
+
+        async function disableFeedbackRegistryItem(itemId) {
+            const ok = window.confirm('Disable this feedback registry item?');
+            if (!ok) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/feedback/${encodeURIComponent(itemId)}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: 'Disabled by user from Feedback tab' }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to disable feedback');
+                }
+                addStatus(`Feedback registry item disabled (${data.id}).`);
+                await loadFeedbackRegistry();
+            } catch (error) {
+                addStatus(`Failed to disable feedback: ${error.message || 'Unknown error'}`);
+            }
+        }
+
         function updateInstructionsDirtyState() {
             const dirty =
                 englishInstructionsTextarea.value !== originalInstructions.comparison ||
+                englishReviewInstructionsTextarea.value !== originalInstructions.english ||
                 frenchInstructionsTextarea.value !== originalInstructions.french;
 
             instructionsSaveStatus.textContent = dirty ? 'Unsaved changes.' : 'No local changes.';
@@ -1112,6 +1582,7 @@
 
         async function loadInstructions() {
             englishInstructionsTextarea.value = 'Loading...';
+            englishReviewInstructionsTextarea.value = 'Loading...';
             frenchInstructionsTextarea.value = 'Loading...';
             instructionsSaveStatus.textContent = 'Loading...';
             instructionsSaveStatus.style.color = '#4b5563';
@@ -1123,19 +1594,25 @@
                 }
                 originalInstructions = {
                     comparison: data.comparison_instructions || '',
+                    english: data.english_instructions || '',
                     french: data.french_instructions || '',
                     comparison_source: data.comparison_source || 'default',
+                    english_source: data.english_source || 'default',
                     french_source: data.french_source || 'default',
                 };
                 englishInstructionsTextarea.value = originalInstructions.comparison;
+                englishReviewInstructionsTextarea.value = originalInstructions.english;
                 frenchInstructionsTextarea.value = originalInstructions.french;
                 comparisonInstructionsSource.textContent = `Source: ${originalInstructions.comparison_source}`;
+                englishReviewInstructionsSource.textContent = `Source: ${originalInstructions.english_source}`;
                 frenchInstructionsSource.textContent = `Source: ${originalInstructions.french_source}`;
                 updateInstructionsDirtyState();
             } catch (error) {
                 englishInstructionsTextarea.value = '';
+                englishReviewInstructionsTextarea.value = '';
                 frenchInstructionsTextarea.value = '';
                 comparisonInstructionsSource.textContent = 'Source: unknown';
+                englishReviewInstructionsSource.textContent = 'Source: unknown';
                 frenchInstructionsSource.textContent = 'Source: unknown';
                 instructionsSaveStatus.textContent = 'Failed to load instructions.';
                 instructionsSaveStatus.style.color = '#991b1b';
@@ -1146,6 +1623,7 @@
         async function saveInstructions() {
             const payload = {
                 comparison_instructions: englishInstructionsTextarea.value,
+                english_instructions: englishReviewInstructionsTextarea.value,
                 french_instructions: frenchInstructionsTextarea.value,
             };
 
@@ -1166,13 +1644,17 @@
 
                 originalInstructions = {
                     comparison: data.comparison_instructions || '',
+                    english: data.english_instructions || '',
                     french: data.french_instructions || '',
                     comparison_source: data.comparison_source || 'default',
+                    english_source: data.english_source || 'default',
                     french_source: data.french_source || 'default',
                 };
                 englishInstructionsTextarea.value = originalInstructions.comparison;
+                englishReviewInstructionsTextarea.value = originalInstructions.english;
                 frenchInstructionsTextarea.value = originalInstructions.french;
                 comparisonInstructionsSource.textContent = `Source: ${originalInstructions.comparison_source}`;
+                englishReviewInstructionsSource.textContent = `Source: ${originalInstructions.english_source}`;
                 frenchInstructionsSource.textContent = `Source: ${originalInstructions.french_source}`;
                 updateInstructionsDirtyState();
                 instructionsSaveStatus.textContent = 'Saved successfully.';
@@ -1203,13 +1685,17 @@
                 }
                 originalInstructions = {
                     comparison: data.comparison_instructions || '',
+                    english: data.english_instructions || '',
                     french: data.french_instructions || '',
                     comparison_source: data.comparison_source || 'default',
+                    english_source: data.english_source || 'default',
                     french_source: data.french_source || 'default',
                 };
                 englishInstructionsTextarea.value = originalInstructions.comparison;
+                englishReviewInstructionsTextarea.value = originalInstructions.english;
                 frenchInstructionsTextarea.value = originalInstructions.french;
                 comparisonInstructionsSource.textContent = `Source: ${originalInstructions.comparison_source}`;
+                englishReviewInstructionsSource.textContent = `Source: ${originalInstructions.english_source}`;
                 frenchInstructionsSource.textContent = `Source: ${originalInstructions.french_source}`;
                 updateInstructionsDirtyState();
                 instructionsSaveStatus.textContent = `Reset completed for ${mode}.`;
@@ -1225,6 +1711,7 @@
         }
 
         async function loadReferenceDocuments() {
+            logoDocsPreview.textContent = 'Loading...';
             glossaryDocsPreview.textContent = 'Loading...';
             styleGuideDocsPreview.textContent = 'Loading...';
             try {
@@ -1234,37 +1721,49 @@
                     throw new Error(data.detail || 'Failed to load references');
                 }
 
+                const logos = Array.isArray(data.logo_documents) ? data.logo_documents : [];
                 const glossary = Array.isArray(data.glossary_documents) ? data.glossary_documents : [];
                 const styles = Array.isArray(data.style_guide_documents) ? data.style_guide_documents : [];
 
+                logoDocsPreview.textContent = logos.length
+                    ? logos.map((d) => `• ${d.name}`).join('\n')
+                    : 'No logo guidelines found.';
                 glossaryDocsPreview.textContent = glossary.length
                     ? glossary.map((d) => `• ${d.name}`).join('\n')
                     : 'No glossary files found.';
                 styleGuideDocsPreview.textContent = styles.length
                     ? styles.map((d) => `• ${d.name}`).join('\n')
                     : 'No style guide files found.';
-
-                const globalUploads = data.global_uploads || {};
-                benchmarkGlobalCurrent.textContent = `Current: ${globalUploads.benchmark_report || 'none'}`;
-                ageGlobalCurrent.textContent = `Current: ${globalUploads.age_references || 'none'}`;
-                textGlobalCurrent.textContent = `Current: ${globalUploads.text_preferences || 'none'}`;
             } catch (error) {
+                logoDocsPreview.textContent = 'Failed to load logo guidelines.';
                 glossaryDocsPreview.textContent = 'Failed to load glossary files.';
                 styleGuideDocsPreview.textContent = 'Failed to load style guide files.';
-                benchmarkGlobalCurrent.textContent = 'Current: unknown';
-                ageGlobalCurrent.textContent = 'Current: unknown';
-                textGlobalCurrent.textContent = 'Current: unknown';
             }
         }
 
         async function loadRuleEngineDoc() {
             const preview = document.getElementById('ruleEngineDocPreview');
             preview.textContent = 'Loading...';
+            const attempts = [
+                '/docs/rule_engine',
+                '/docs/rule_engine?_ts=' + Date.now(),
+            ];
             try {
-                const res = await fetch('/docs/rule_engine');
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Failed to load rule engine documentation');
-                preview.textContent = data.content || 'No documentation available.';
+                let lastError = null;
+                for (const url of attempts) {
+                    try {
+                        const res = await fetch(url, { cache: 'no-store' });
+                        const data = await res.json();
+                        if (!res.ok) {
+                            throw new Error(data.detail || 'Failed to load rule engine documentation');
+                        }
+                        preview.textContent = data.content || 'No documentation available.';
+                        return;
+                    } catch (err) {
+                        lastError = err;
+                    }
+                }
+                throw lastError || new Error('Failed to load rule engine documentation');
             } catch (err) {
                 preview.textContent = `Failed to load documentation: ${err.message || err}`;
             }
@@ -1381,10 +1880,36 @@
             return v;
         }
 
+        function insertTextAtCursor(textarea, text) {
+            if (!textarea) {
+                return;
+            }
+            const start = textarea.selectionStart ?? textarea.value.length;
+            const end = textarea.selectionEnd ?? textarea.value.length;
+            const before = textarea.value.slice(0, start);
+            const after = textarea.value.slice(end);
+            textarea.value = `${before}${text}${after}`;
+            const nextPos = start + text.length;
+            textarea.selectionStart = nextPos;
+            textarea.selectionEnd = nextPos;
+            textarea.focus();
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         updateFileInputsByPromptMode();
+        renderFindings([], null, latestPromptMode);
         loadReferenceDocuments();
         // Load latest instruction set from backend at startup
         loadInstructions();
+        loadFeedbackRegistry();
     </script>
 </body>
 </html>

@@ -42,6 +42,8 @@ class FileUploadResponse(BaseModel):
     llm_error: Optional[str] = Field(default=None, description="LLM error message if failed")
     llm_usage: Optional[dict] = Field(default=None, description="LLM usage and estimated cost for this run")
     instructions_source: Optional[str] = Field(default=None, description="Instructions source: custom|default")
+    prompt_mode: Optional[str] = Field(default=None, description="Prompt mode used for the review")
+    applied_memory_count: Optional[int] = Field(default=0, description="Active feedback-registry rules applied for this mode")
     phase_updates: Optional[list[str]] = Field(
         default=None,
         description="Backend phase-by-phase status updates",
@@ -62,5 +64,56 @@ class HealthResponse(BaseModel):
 class InstructionsResponse(BaseModel):
     comparison_instructions: str
     french_instructions: str
+    english_instructions: str
     comparison_source: Optional[str] = None
     french_source: Optional[str] = None
+    english_source: Optional[str] = None
+
+
+class FeedbackRegistryCreateRequest(BaseModel):
+    mode: str = Field(..., description="Target prompt mode: comparison|french_review|english_review")
+    feedback_type: str = Field(..., description="false_alarm|missed_issue|correction")
+    finding_category: Optional[str] = Field(default=None, description="Finding category")
+    issue_pattern: str = Field(..., min_length=1, description="Issue phrase/pattern this feedback applies to")
+    reason: str = Field(..., min_length=1, description="Why this entry should be applied")
+    expected_finding: Optional[str] = Field(default=None, description="Expected corrected/missed finding text")
+    original_finding: Optional[dict] = Field(default=None, description="Original finding snapshot")
+    priority: str = Field(default="medium", description="low|medium|high")
+    created_by: Optional[str] = Field(default=None, description="Optional user identifier")
+
+
+class FeedbackRegistryUpdateRequest(BaseModel):
+    mode: Optional[str] = Field(default=None, description="comparison|french_review|english_review")
+    feedback_type: Optional[str] = Field(default=None, description="false_alarm|missed_issue|correction")
+    finding_category: Optional[str] = None
+    issue_pattern: Optional[str] = Field(default=None, min_length=1)
+    reason: Optional[str] = Field(default=None, min_length=1)
+    expected_finding: Optional[str] = None
+    priority: Optional[str] = Field(default=None, description="low|medium|high")
+    status: Optional[str] = Field(default=None, description="pending_review|active|disabled")
+
+
+class FeedbackRegistryDisableRequest(BaseModel):
+    reason: Optional[str] = Field(default=None, description="Optional soft-disable reason")
+
+
+class FeedbackRegistryItem(BaseModel):
+    id: str
+    mode: str
+    feedback_type: str
+    finding_category: Optional[str] = None
+    issue_pattern: str
+    reason: str
+    expected_finding: Optional[str] = None
+    original_finding: Optional[dict] = None
+    status: str
+    priority: str
+    created_by: Optional[str] = None
+    disabled_reason: Optional[str] = None
+    created_at: str
+    updated_at: str
+    version: int
+
+
+class FeedbackRegistryListResponse(BaseModel):
+    items: list[FeedbackRegistryItem]

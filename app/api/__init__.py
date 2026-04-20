@@ -3,48 +3,66 @@ from typing import Optional, AsyncGenerator, Any
 import asyncio
 import json
 import logging
+import hashlib
 
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Query, Body
 from fastapi.responses import StreamingResponse
 
-from app.schemas import FileUploadResponse, InstructionsResponse
+from app.schemas import (
+    FileUploadResponse,
+    InstructionsResponse,
+    FeedbackRegistryCreateRequest,
+    FeedbackRegistryUpdateRequest,
+    FeedbackRegistryDisableRequest,
+    FeedbackRegistryItem,
+    FeedbackRegistryListResponse,
+)
 from app.services import generate_job_id, save_uploaded_file, save_uploaded_file_stream
 from app.services.parser_service import DocumentParserService
-from app.services.llm_service import review_with_llm
-from app.services.sheets_service import GoogleSheetsWriterService
-from app.services.rule_engine import run_deterministic_checks
-from app.services.reference_service import (
+from app.llm.gemini_client import review_with_llm
+from app.export.sheets_client import GoogleSheetsWriterService
+from app.checks.french_rules import run_french_checks
+from app.checks.english_rules import run_english_checks
+from app.checks.alignment_rules import (
+    run_alignment_checks,
     get_reference_context,
     get_reference_documents,
     reload_reference_documents,
     get_reference_style_rules,
     get_reference_glossary_rules,
 )
-from app.prompts.review_prompt import get_fixed_mode_instructions
+from app.checks.alignment_rules import run_alignment_checks as _run_alignment_checks
 from app.core.config import get_settings
-from app.services.instructions_service import InstructionsService
+from app.llm.prompt_builder import InstructionsService, get_mode_template
+from app.services.feedback_registry_service import FeedbackRegistryService
+
+
+def run_deterministic_checks(report, benchmark=None, glossary_rules=None, style_rules=None):
+    """Local wrapper that delegates to the checks packages."""
+    from app.models import ParsedDocument
+    lang = (report.metadata.language or "").strip().lower()
+    findings = []
+    if lang == "french":
+        findings.extend(run_french_checks(report, glossary_rules, style_rules))
+    else:
+        findings.extend(run_english_checks(report, glossary_rules, style_rules))
+    findings.extend(_run_alignment_checks(report, benchmark, glossary_rules, style_rules))
+    return findings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 parser_service = DocumentParserService()
 instructions_service = InstructionsService()
+feedback_registry_service = FeedbackRegistryService()
 settings = get_settings()
 
 ALLOWED_EXTENSIONS = {".pdf", ".pptx", ".docx", ".doc"}
 
 GLOBAL_REFERENCE_UPLOADS = {
-    "benchmark_report": {
-        "prefix": "benchmark_report",
-        "extensions": {".pptx", ".pdf"},
-    },
-    "age_references": {
-        "prefix": "age_references",
-        "extensions": {".pdf", ".docx"},
-    },
-    "text_preferences": {
-        "prefix": "text_preferences",
-        "extensions": {".pdf", ".docx"},
+    "logo_guidelines": {
+        "prefix": "logo_guidelines",
+        "extensions": {".pdf"},
     },
 }
 
@@ -54,12 +72,47 @@ def _resolve_instructions(prompt_mode: str) -> tuple[str, str]:
     mode = (prompt_mode or "french_review").strip().lower()
     if mode == "comparison":
         custom = (saved.get("comparison_instructions") or "").strip()
+    elif mode == "english_review":
+        custom = (saved.get("english_instructions") or "").strip()
     else:
         custom = (saved.get("french_instructions") or "").strip()
 
     if custom:
-        return custom, "custom"
-    return get_fixed_mode_instructions(mode), "default"
+        base = custom
+        source = "custom"
+    else:
+        base = get_mode_template(mode)
+        source = "default"
+
+    directives = feedback_registry_service.get_active_mode_directives(mode)
+    false_alarms = directives.get("false_alarms") or []
+    missed_issues = directives.get("missed_issues") or []
+    corrections = directives.get("corrections") or []
+
+    if not (false_alarms or missed_issues or corrections):
+        return base, source
+
+    learned_sections: list[str] = []
+    if false_alarms:
+        learned_sections.append(
+            "Known false alarms to avoid:\n" + "\n".join([f"- {line}" for line in false_alarms])
+        )
+    if missed_issues:
+        learned_sections.append(
+            "Known missed issues to explicitly check:\n" + "\n".join([f"- {line}" for line in missed_issues])
+        )
+    if corrections:
+        learned_sections.append(
+            "Known correction preferences:\n" + "\n".join([f"- {line}" for line in corrections])
+        )
+
+    learned_block = "\n\n".join(learned_sections)
+    combined = (
+        f"{base}\n\n"
+        "Structured feedback registry guidance (mode-scoped):\n"
+        f"{learned_block}"
+    )
+    return combined, f"{source}+feedback-registry"
 
 
 def _new_timeline(comparison_mode: bool) -> list[dict[str, Any]]:
@@ -176,11 +229,11 @@ async def upload_report(
     if report_language not in ["French", "English"]:
         raise HTTPException(status_code=400, detail="Language must be 'French' or 'English'")
 
-    allowed_prompt_modes = {"comparison", "french_review"}
+    allowed_prompt_modes = {"comparison", "french_review", "english_review"}
     if prompt_mode not in allowed_prompt_modes:
         raise HTTPException(
             status_code=400,
-            detail="prompt_mode must be one of: comparison, french_review",
+            detail="prompt_mode must be one of: comparison, french_review, english_review",
         )
 
     if prompt_mode == "comparison" and not comparison_mode:
@@ -193,6 +246,18 @@ async def upload_report(
         raise HTTPException(
             status_code=400,
             detail="french_review prompt requires report_language='French'",
+        )
+
+    if prompt_mode == "english_review" and report_language != "English":
+        raise HTTPException(
+            status_code=400,
+            detail="english_review prompt requires report_language='English'",
+        )
+
+    if prompt_mode == "english_review" and comparison_mode:
+        raise HTTPException(
+            status_code=400,
+            detail="english_review prompt requires comparison_mode=false",
         )
 
     # Generate job ID
@@ -371,6 +436,14 @@ async def upload_report(
         logger.warning(f"[{job_id}] LLM review failed: {str(e)}")
         phase_updates.append("Phase 4: LLM review failed. Using deterministic findings only.")
 
+    findings = _attach_finding_ids(findings, job_id)
+    active_directives = feedback_registry_service.get_active_mode_directives(prompt_mode)
+    active_memory_count = (
+        len(active_directives.get("false_alarms") or [])
+        + len(active_directives.get("missed_issues") or [])
+        + len(active_directives.get("corrections") or [])
+    )
+
     sheets_url = None
     sheets_status = "skipped"
     sheets_error = None
@@ -441,6 +514,8 @@ async def upload_report(
         llm_error=llm_error,
         llm_usage=llm_usage if 'llm_usage' in locals() else None,
         instructions_source=instruction_source,
+        prompt_mode=prompt_mode,
+        applied_memory_count=active_memory_count,
         phase_updates=phase_updates,
         timeline=timeline,
     )
@@ -469,12 +544,16 @@ async def upload_report_stream(
         raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
     if report_language not in ["French", "English"]:
         raise HTTPException(status_code=400, detail="Language must be 'French' or 'English'")
-    if prompt_mode not in {"comparison", "french_review"}:
-        raise HTTPException(status_code=400, detail="prompt_mode must be one of: comparison, french_review")
+    if prompt_mode not in {"comparison", "french_review", "english_review"}:
+        raise HTTPException(status_code=400, detail="prompt_mode must be one of: comparison, french_review, english_review")
     if prompt_mode == "comparison" and not comparison_mode:
         raise HTTPException(status_code=400, detail="comparison prompt requires comparison_mode=true")
     if prompt_mode == "french_review" and report_language != "French":
         raise HTTPException(status_code=400, detail="french_review prompt requires report_language='French'")
+    if prompt_mode == "english_review" and report_language != "English":
+        raise HTTPException(status_code=400, detail="english_review prompt requires report_language='English'")
+    if prompt_mode == "english_review" and comparison_mode:
+        raise HTTPException(status_code=400, detail="english_review prompt requires comparison_mode=false")
     if comparison_mode and not benchmark_file:
         raise HTTPException(status_code=400, detail="Benchmark file required when comparison_mode is True")
 
@@ -787,11 +866,20 @@ async def upload_report_stream(
                 async for evt in flush_sse():
                     yield evt
 
+            findings = _attach_finding_ids(findings, job_id)
+            active_directives = feedback_registry_service.get_active_mode_directives(prompt_mode)
+            active_memory_count = (
+                len(active_directives.get("false_alarms") or [])
+                + len(active_directives.get("missed_issues") or [])
+                + len(active_directives.get("corrections") or [])
+            )
+
             yield _sse("done", {
                 "job_id": job_id,
                 "file_name": file.filename,
                 "report_language": report_language,
                 "comparison_mode": comparison_mode,
+                "prompt_mode": prompt_mode,
                 "findings_count": len(findings),
                 "findings": findings,
                 "sheets_url": sheets_url,
@@ -801,6 +889,7 @@ async def upload_report_stream(
                 "llm_error": llm_error,
                 "llm_usage": llm_usage if 'llm_usage' in locals() else None,
                 "instructions_source": instruction_source,
+                "applied_memory_count": active_memory_count,
                 "timeline": timeline,
                 "message": f"Review complete. Found {parsed_report.metadata.total_pages} pages.",
             })
@@ -817,12 +906,15 @@ def get_instructions() -> InstructionsResponse:
     saved = instructions_service.get_instructions()
     comparison_custom = (saved.get("comparison_instructions") or "").strip()
     french_custom = (saved.get("french_instructions") or "").strip()
+    english_custom = (saved.get("english_instructions") or "").strip()
 
     return InstructionsResponse(
-        comparison_instructions=comparison_custom or get_fixed_mode_instructions("comparison"),
-        french_instructions=french_custom or get_fixed_mode_instructions("french_review"),
+        comparison_instructions=comparison_custom or get_mode_template("comparison"),
+        french_instructions=french_custom or get_mode_template("french_review"),
+        english_instructions=english_custom or get_mode_template("english_review"),
         comparison_source="custom" if comparison_custom else "default",
         french_source="custom" if french_custom else "default",
+        english_source="custom" if english_custom else "default",
     )
 
 
@@ -830,16 +922,18 @@ def get_instructions() -> InstructionsResponse:
 def save_instructions(payload: dict = Body(...)) -> InstructionsResponse:
     comparison_instructions = payload.get("comparison_instructions")
     french_instructions = payload.get("french_instructions")
+    english_instructions = payload.get("english_instructions")
 
-    if comparison_instructions is None and french_instructions is None:
+    if comparison_instructions is None and french_instructions is None and english_instructions is None:
         raise HTTPException(
             status_code=400,
-            detail="At least one of comparison_instructions or french_instructions must be provided",
+            detail="At least one of comparison_instructions, french_instructions, or english_instructions must be provided",
         )
 
     instructions_service.update_instructions(
         comparison_instructions=comparison_instructions,
         french_instructions=french_instructions,
+        english_instructions=english_instructions,
     )
     return get_instructions()
 
@@ -847,11 +941,76 @@ def save_instructions(payload: dict = Body(...)) -> InstructionsResponse:
 @router.post("/instructions/reset", response_model=InstructionsResponse)
 def reset_instructions(payload: dict = Body(default={})) -> InstructionsResponse:
     mode = (payload.get("mode") or "all").strip().lower()
-    if mode not in {"comparison", "french", "all"}:
-        raise HTTPException(status_code=400, detail="mode must be one of: comparison, french, all")
+    if mode not in {"comparison", "french", "english", "all"}:
+        raise HTTPException(status_code=400, detail="mode must be one of: comparison, french, english, all")
 
     instructions_service.reset_instructions(mode=mode)
     return get_instructions()
+
+
+@router.get("/feedback", response_model=FeedbackRegistryListResponse)
+def list_feedback_registry(
+    mode: Optional[str] = Query(default=None),
+    feedback_type: Optional[str] = Query(default=None),
+    status: Optional[str] = Query(default=None),
+) -> FeedbackRegistryListResponse:
+    try:
+        items = feedback_registry_service.list_items(mode=mode, feedback_type=feedback_type, status=status)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return FeedbackRegistryListResponse(items=[FeedbackRegistryItem(**item) for item in items])
+
+
+@router.post("/feedback", response_model=FeedbackRegistryItem, status_code=201)
+def create_feedback_registry_item(payload: FeedbackRegistryCreateRequest) -> FeedbackRegistryItem:
+    try:
+        created = feedback_registry_service.create_item(
+            mode=payload.mode,
+            feedback_type=payload.feedback_type,
+            finding_category=payload.finding_category,
+            issue_pattern=payload.issue_pattern,
+            reason=payload.reason,
+            expected_finding=payload.expected_finding,
+            original_finding=payload.original_finding,
+            priority=payload.priority,
+            created_by=payload.created_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return FeedbackRegistryItem(**created)
+
+
+@router.put("/feedback/{item_id}", response_model=FeedbackRegistryItem)
+def update_feedback_registry_item(item_id: str, payload: FeedbackRegistryUpdateRequest) -> FeedbackRegistryItem:
+    try:
+        updated = feedback_registry_service.update_item(
+            item_id,
+            mode=payload.mode,
+            feedback_type=payload.feedback_type,
+            finding_category=payload.finding_category,
+            issue_pattern=payload.issue_pattern,
+            reason=payload.reason,
+            expected_finding=payload.expected_finding,
+            priority=payload.priority,
+            status=payload.status,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return FeedbackRegistryItem(**updated)
+
+
+@router.delete("/feedback/{item_id}", response_model=FeedbackRegistryItem)
+def disable_feedback_registry_item(
+    item_id: str,
+    payload: Optional[FeedbackRegistryDisableRequest] = Body(default=None),
+) -> FeedbackRegistryItem:
+    try:
+        disabled = feedback_registry_service.disable_item(item_id, payload.reason if payload else None)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return FeedbackRegistryItem(**disabled)
 
 
 @router.get("/references")
@@ -860,11 +1019,13 @@ def get_references() -> dict:
     docs = get_reference_documents()
     glossary_docs = [d for d in docs if d.get("type") == "glossary"]
     style_docs = [d for d in docs if d.get("type") == "style_guide"]
+    logo_docs = [d for d in docs if d.get("type") == "logo_guidelines"]
     other_docs = [d for d in docs if d.get("type") == "reference"]
     return {
         "documents": docs,
         "glossary_documents": glossary_docs,
         "style_guide_documents": style_docs,
+        "logo_documents": logo_docs,
         "other_documents": other_docs,
         "global_uploads": _get_global_uploads(docs),
     }
@@ -1008,6 +1169,43 @@ def _infer_category(issue_text: str) -> str:
     return "Formatting & Consistency"
 
 
+def _is_graph_title_unit_placeholder_false_positive(issue: str, proposed: str) -> bool:
+    text = f"{issue} {proposed}".lower()
+
+    placeholder_tokens = ["00%", "00 %", "0%", "00$", "00 $", "placeholder"]
+    title_unit_tokens = [
+        "graph title",
+        "chart title",
+        "title",
+        "header",
+        "unit",
+        "| %",
+        "|%",
+        "pipe",
+        "title |",
+        "| unit",
+    ]
+    in_graph_data_tokens = [
+        "inside graph",
+        "in the graph",
+        "bar",
+        "bars",
+        "line",
+        "slice",
+        "segment",
+        "data label",
+        "axis value",
+        "plot",
+        "legend value",
+    ]
+
+    has_placeholder = any(token in text for token in placeholder_tokens)
+    mentions_title_unit = any(token in text for token in title_unit_tokens)
+    mentions_data_value_location = any(token in text for token in in_graph_data_tokens)
+
+    return has_placeholder and mentions_title_unit and not mentions_data_value_location
+
+
 def _filter_low_value_findings(findings: list[dict]) -> list[dict]:
     filtered: list[dict] = []
     for item in findings:
@@ -1022,6 +1220,11 @@ def _filter_low_value_findings(findings: list[dict]) -> list[dict]:
             or "defined" in proposed
             or "first mention" in proposed
         ):
+            continue
+
+        # Drop false positives where placeholder-like values are actually title/unit labels,
+        # for example "Graph Name | %" in PPT chart headers.
+        if _is_graph_title_unit_placeholder_false_positive(issue, proposed):
             continue
 
         item["category"] = _normalize_category(item.get("category"), item.get("issue_detected", ""))
@@ -1131,6 +1334,30 @@ def _dedupe_findings(findings: list[dict]) -> list[dict]:
     return grouped
 
 
+def _attach_finding_ids(findings: list[dict], job_id: str) -> list[dict]:
+    output: list[dict] = []
+    for idx, item in enumerate(findings):
+        normalized = dict(item)
+        if normalized.get("finding_id"):
+            output.append(normalized)
+            continue
+
+        key_parts = [
+            str(job_id or ""),
+            str(normalized.get("page_number") or ""),
+            str(normalized.get("language") or ""),
+            str(normalized.get("category") or ""),
+            str(normalized.get("issue_detected") or ""),
+            str(normalized.get("proposed_change") or ""),
+            str(normalized.get("source") or ""),
+            str(idx),
+        ]
+        digest = hashlib.sha1("|".join(key_parts).encode("utf-8")).hexdigest()[:16]
+        normalized["finding_id"] = f"f_{digest}"
+        output.append(normalized)
+    return output
+
+
 def _get_global_uploads(docs: list[dict]) -> dict:
     by_name = {d.get("name", ""): d for d in docs}
 
@@ -1141,9 +1368,7 @@ def _get_global_uploads(docs: list[dict]) -> dict:
         return None
 
     return {
-        "benchmark_report": find("benchmark_report"),
-        "age_references": find("age_references"),
-        "text_preferences": find("text_preferences"),
+        "logo_guidelines": find("logo_guidelines"),
     }
 
 
@@ -1156,8 +1381,12 @@ def get_review_status(job_id: str) -> dict:
 @router.get("/docs/rule_engine")
 def get_rule_engine_doc() -> dict:
     """Return the rule engine explanation markdown used by the frontend "How it works" tab."""
-    docs_path = Path(__file__).resolve().parents[2] / "docs" / "rule_engine_explanation.md"
-    if not docs_path.exists():
+    candidate_paths = [
+        Path(__file__).resolve().parents[2] / "docs" / "rule_engine_explanation.md",
+        Path.cwd() / "docs" / "rule_engine_explanation.md",
+    ]
+    docs_path = next((p for p in candidate_paths if p.exists()), None)
+    if docs_path is None:
         raise HTTPException(status_code=404, detail="Rule engine documentation not found")
     try:
         content = docs_path.read_text(encoding="utf-8")

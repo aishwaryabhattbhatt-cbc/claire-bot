@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     upload_dir: str = "./data/uploads"
     processed_dir: str = "./data/processed"
     reference_dir: str = "./reference"
+    feedback_memory_filename: str = "review_feedback_memory.json"
+    feedback_registry_filename: str = "review_feedback_registry.json"
 
 
 @lru_cache

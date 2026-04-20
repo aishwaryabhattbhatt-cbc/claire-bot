@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "id": "8ee8bce7-7808-40e4-90c8-ed1f34b3aea5",
+      "mode": "english_review",
+      "source_type": "feedback",
+      "origin_review_job_id": "1132563c-51bc-4dfa-83e3-81405dce74f6",
+      "origin_finding_id": null,
+      "finding_snapshot": {
+        "findings_count": 15,
+        "categories": [
+          "Data Accuracy",
+          "Formatting & Consistency",
+          "Footnotes & References",
+          "Terminology"
+        ],
+        "sample_findings": [
+          {
+            "page_number": 4,
+            "language": "English",
+            "category": "Data Accuracy",
+            "issue_detected": "Placeholder '00%' is present in the 'SVOD Subscriptions Canadians 18+ | % 00%' section.",
+            "proposed_change": "Replace '00%' with the actual data percentage.",
+            "source": "llm"
+          },
+          {
+            "page_number": 11,
+            "language": "English",
+            "category": "Data Accuracy",
+            "issue_detected": "Placeholders 'Insert Title', 'Insert Text', and '25%' are present, indicating missing data or text for a graph/chart.",
+            "proposed_change": "Replace placeholders with actual graph title, text, and data.",
+            "source": "llm"
+          },
+          {
+            "page_number": 11,
+            "language": "English",
+            "category": "Formatting & Consistency",
+            "issue_detected": "The heading 'MULTI TASKING CANADIANS' has a space between 'MULTI' and 'TASKING', which is inconsistent with 'MULTITASKING CANADIANS' (no space) used on page 10.",
+            "proposed_change": "Change 'MULTI TASKING CANADIANS' to 'MULTITASKING CANADIANS' for consistency.",
+            "source": "llm"
+          }
+        ]
+      },
+      "feedback_text": "Do not consider the objects that are placed beyond the slide. For eg on page 20- insert text, insert title placeholder text is not part of the slide, it is beyond the slide. So do not consider that in your findings.",
+      "derived_instruction": "For English review mode, apply this feedback consistently in future reviews. User guidance: Do not consider the objects that are placed beyond the slide. For eg on page 20- insert text, insert title placeholder text is not part of the slide, it is beyond the slide. So do not consider that in your findings..",
+      "derivation_status": "completed",
+      "activation_status": "disabled",
+      "is_soft_disabled": true,
+      "failure_reason": null,
+      "created_at": "2026-04-09T15:58:28.317416+00:00",
+      "updated_at": "2026-04-09T19:13:38.908653+00:00",
+      "derived_at": "2026-04-09T15:58:28.935492+00:00",
+      "activated_at": "2026-04-09T15:58:28.935492+00:00",
+      "disabled_at": "2026-04-09T19:13:38.908653+00:00",
+      "disabled_reason": "Deleted by user from Feedback tab",
+      "version": 4
+    }
+  ]
+}
